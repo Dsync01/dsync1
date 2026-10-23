@@ -312,16 +312,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Tenta recuperar sessão do Supabase
   if (window.supabase) {
-    window.supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        usuarioSupabase = session.user;
-        state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
+    window.supabase.auth.getSession().then(async ({ data: { session } }) => {
+     if (session) {
+      usuarioSupabase = session.user;
+
+        state.usuarioAtual = {
+          id: session.user.id,
+          nome: session.user.email,
+          tipo: 'admin'
+        };
+
         console.log('✅ Sessão restaurada:', session.user.email);
+
+        await carregarDaNuvem();
         entrarApp();
-        return;
+      } else {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContent').style.display = 'none';
       }
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('appContent').style.display = 'none';
+      
     });
   } else {
     // Fallback
