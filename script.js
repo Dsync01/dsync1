@@ -462,7 +462,7 @@ async function fazerLoginSupabase() {
     }
 
     usuarioSupabase = data.user;
-    state.usuarioAtual = { id: data.user.id, nome: data.user.email, tipo: 'admin' };
+    state.usuarioAtual = { id: data.user.id, nome: data.user.user_metadata?.nome || data.user.email, tipo: 'admin'};
     
     // Carrega os dados da nuvem antes de entrar
     await carregarDaNuvem();
