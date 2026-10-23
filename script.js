@@ -477,30 +477,39 @@ async function fazerLoginSupabase() {
   }
 }
 
+
 async function criarConta() {
+  const nome = document.getElementById('novoNome').value.trim();
   const email = document.getElementById('novoUsuario').value.trim();
   const senha = document.getElementById('novaSenha').value;
   const confirma = document.getElementById('confirmarSenha').value;
   const msg = document.getElementById('mensagemLogin');
 
-  if (!email || !senha || !confirma) {
+  if (!nome || !email || !senha || !confirma) {
     msg.textContent = '⚠️ Preencha todos os campos!';
     msg.style.display = 'block';
+    msg.style.color = '#e74c3c';
     return;
   }
+
   if (senha.length < 6) {
-    msg.textContent = '⚠️ Senha deve ter pelo menos 6 caracteres!';
+    msg.textContent = '⚠️ A senha deve ter pelo menos 6 caracteres!';
     msg.style.display = 'block';
+    msg.style.color = '#e74c3c';
     return;
   }
+
   if (senha !== confirma) {
-    msg.textContent = '❌ Senhas não coincidem!';
+    msg.textContent = '❌ As senhas não coincidem!';
     msg.style.display = 'block';
+    msg.style.color = '#e74c3c';
     return;
   }
+
   if (!window.supabase) {
     msg.textContent = '❌ Supabase não carregou.';
     msg.style.display = 'block';
+    msg.style.color = '#e74c3c';
     return;
   }
 
@@ -511,6 +520,11 @@ async function criarConta() {
   const { data, error } = await window.supabase.auth.signUp({
     email: email,
     password: senha,
+    options: {
+      data: {
+        nome: nome
+      }
+    }
   });
 
   if (error) {
@@ -520,17 +534,21 @@ async function criarConta() {
     return;
   }
 
-  msg.textContent = '✅ Conta criada! Verifique seu e-mail se a confirmação estiver ativa.';
+  msg.textContent =
+    '✅ Conta criada! Verifique seu e-mail se a confirmação estiver ativa.';
   msg.style.display = 'block';
   msg.style.color = '#2ecc71';
 
   setTimeout(() => {
     mostrarLogin();
+
     document.getElementById('loginUsuario').value = email;
+
     msg.style.display = 'none';
     msg.style.color = '#e74c3c';
   }, 3000);
 }
+
 
 // Salvar dados na nuvem
 async function salvarNaNuvem() {
