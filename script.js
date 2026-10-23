@@ -370,6 +370,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }, 1000);
   }
+  
 });function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
   state.prateleiras = getData(STORAGE_KEYS.prateleiras, []);
@@ -575,6 +576,7 @@ let temporizadorSalvamento = null;
 let salvamentoEmAndamento = false;
 let salvamentoPendente = false;
 
+
 function agendarSalvamentoNuvem() {
   if (!usuarioSupabase) return;
 
@@ -589,9 +591,16 @@ function agendarSalvamentoNuvem() {
     salvamentoEmAndamento = true;
 
     try {
-      await salvarNaNuvem();
+      do {
+        salvamentoPendente = false;
+        await salvarNaNuvem();
+      } while (salvamentoPendente);
     } catch (erro) {
       console.error('Erro no salvamento automático:', erro);
+      mostrarToast(
+        '⚠️ Não foi possível salvar na nuvem. Verifique sua conexão.',
+        'warning'
+      );
     } finally {
       salvamentoEmAndamento = false;
 
@@ -602,6 +611,7 @@ function agendarSalvamentoNuvem() {
     }
   }, 1000);
 }
+
 
 
 // Carregar dados da nuvem
