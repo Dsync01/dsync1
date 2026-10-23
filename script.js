@@ -64,10 +64,30 @@ function getData(key, fallback) {
   } catch { return fallback; }
 }
 
+
 function setData(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); }
-  catch (e) { console.error(e); mostrarToast('⚠️ Erro ao salvar (armazenamento cheio?)', 'warning'); }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error('Erro ao salvar localmente:', e);
+    mostrarToast(
+      '⚠️ Erro ao salvar (armazenamento cheio?)',
+      'warning'
+    );
+    return;
+  }
+
+  // Não sincroniza configurações locais ou usuários locais.
+  if (
+    usuarioSupabase &&
+    ![
+      STORAGE_KEYS.usuarios
+    ].includes(key)
+  ) {
+    agendarSalvamentoNuvem();
+  }
 }
+
 
 function saveData() {
   setData(STORAGE_KEYS.produtos, state.produtos);
@@ -548,6 +568,40 @@ async function salvarNaNuvem() {
     if (el) el.textContent = new Date().toLocaleString('pt-BR');
   }
 }
+
+
+let temporizadorSalvamento = null;
+let salvamentoEmAndamento = false;
+let salvamentoPendente = false;
+
+function agendarSalvamentoNuvem() {
+  if (!usuarioSupabase) return;
+
+  clearTimeout(temporizadorSalvamento);
+
+  temporizadorSalvamento = setTimeout(async () => {
+    if (salvamentoEmAndamento) {
+      salvamentoPendente = true;
+      return;
+    }
+
+    salvamentoEmAndamento = true;
+
+    try {
+      await salvarNaNuvem();
+    } catch (erro) {
+      console.error('Erro no salvamento automático:', erro);
+    } finally {
+      salvamentoEmAndamento = false;
+
+      if (salvamentoPendente) {
+        salvamentoPendente = false;
+        agendarSalvamentoNuvem();
+      }
+    }
+  }, 1000);
+}
+
 
 // Carregar dados da nuvem
 async function carregarDaNuvem() {
