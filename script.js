@@ -606,11 +606,14 @@ function entrarApp() {
   iniciarBackupAutomatico();
   iniciarTimerProducao();
 
-  // Configura o backup automático na nuvem
-  if (window.supabase && usuarioSupabase) {
-    setInterval(() => {
-      if (usuarioSupabase) salvarNaNuvem();
-    }, 300000); // 5 minutos
+ 
+/* Configura o backup automático na nuvem */
+  if (window.supabase) {
+    setInterval(async () => {
+      if (usuarioSupabase) {
+        await salvarNaNuvem();
+      }
+    }, 300000); // a cada 5 minutos
   }
 }
 
