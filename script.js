@@ -313,7 +313,7 @@ function desfazer() {
   mostrarToast('↩️ Ação desfeita', 'success');
 }
 
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
     const alvo = e.target;
     const dentroDeCampo = alvo && (alvo.tagName === 'INPUT' || alvo.tagName === 'TEXTAREA' || alvo.isContentEditable);
@@ -333,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // Tenta recuperar sessão do Supabase
   if (window.supabase) {
     window.supabase.auth.getSession().then(async ({ data: { session } }) => {
-     if (session) {
-      usuarioSupabase = session.user;
+      if (session) {
+        usuarioSupabase = session.user;
 
         state.usuarioAtual = {
           id: session.user.id,
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('appContent').style.display = 'none';
       }
-      
+
     });
   } else {
     // Fallback
@@ -370,8 +370,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }, 1000);
   }
-  
-});function carregarDados() {
+
+}); function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
   state.prateleiras = getData(STORAGE_KEYS.prateleiras, []);
   state.carga = getData(STORAGE_KEYS.carga, []);
@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
   state.injecao = getData(STORAGE_KEYS.injecao, []);
   state.injetando = getData(STORAGE_KEYS.injetando, []);
   state.injetados = getData(STORAGE_KEYS.injetados, []);
-  state.materiaPrima = getData(STORAGE_KEYS.materiaPrima, { tipos: ['PP','PE','PET','PS','PVC','ECO'], estoque: {} });
+  state.materiaPrima = getData(STORAGE_KEYS.materiaPrima, { tipos: ['PP', 'PE', 'PET', 'PS', 'PVC', 'ECO'], estoque: {} });
 
   if (state.usuarios.length === 0) {
     state.usuarios = [{ id: 'admin', nome: 'admin', senha: 'admin123', tipo: 'admin' }];
@@ -462,11 +462,22 @@ async function fazerLoginSupabase() {
     }
 
     usuarioSupabase = data.user;
-    state.usuarioAtual = { id: data.user.id, nome: data.user.user_metadata?.nome || data.user.email, tipo: 'admin'};
-    
+
+    const nomeUsuario =
+      data.user.user_metadata?.nome ||
+      data.user.user_metadata?.display_name ||
+      data.user.user_metadata?.full_name ||
+      data.user.email;
+
+    state.usuarioAtual = {
+      id: data.user.id,
+      nome: nomeUsuario,
+      tipo: 'admin'
+    };
+
     // Carrega os dados da nuvem antes de entrar
     await carregarDaNuvem();
-    
+
     entrarApp();
 
   } catch (err) {
@@ -556,7 +567,7 @@ async function salvarNaNuvem() {
     mostrarToast('❌ Faça login para salvar na nuvem!', 'error');
     return;
   }
-  
+
   const dados = {
     produtos: state.produtos,
     prateleiras: state.prateleiras,
@@ -677,7 +688,7 @@ function entrarApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appContent').style.display = 'block';
   document.getElementById('perfilUsuario').textContent = '👤 ' + (state.usuarioAtual?.nome || 'Usuário');
-  document.getElementById('perfilNivel').textContent = state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';
+  /*document.getElementById('perfilNivel').textContent = state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';*/
   document.getElementById('tabUsuarios').style.display = state.usuarioAtual?.tipo === 'admin' ? 'inline-block' : 'none';
 
   document.body.classList.remove('tab-dashboard', 'tab-estoque', 'tab-pedidos', 'tab-injecao', 'tab-usuarios');
@@ -689,8 +700,8 @@ function entrarApp() {
   iniciarBackupAutomatico();
   iniciarTimerProducao();
 
- 
-/* Configura o backup automático na nuvem */
+
+  /* Configura o backup automático na nuvem */
   if (window.supabase) {
     setInterval(async () => {
       if (usuarioSupabase) {
@@ -744,7 +755,7 @@ function mostrarToast(mensagem, tipo = 'info') {
   if (!t) return;
   t.textContent = mensagem;
   t.className = 'toast';
-  if (['success','error','warning'].includes(tipo)) t.classList.add(tipo);
+  if (['success', 'error', 'warning'].includes(tipo)) t.classList.add(tipo);
   t.style.display = 'block';
   clearTimeout(t.timeout);
   t.timeout = setTimeout(() => { t.style.display = 'none'; }, 4000);
@@ -994,7 +1005,7 @@ function abrirModalInsumos() {
     </div>`;
 
   document.querySelectorAll('select[data-field="tipoEmbalagem"]').forEach(sel => {
-    sel.addEventListener('change', function() {
+    sel.addEventListener('change', function () {
       const linha = this.closest('tr');
       const is40 = this.value === '40x50';
       linha.querySelector('input[data-field="estoque"]').disabled = is40;
@@ -1404,7 +1415,7 @@ function abrirAdicionarPosicao(shelfId, posNum) {
       <label>Produto (lista)</label>
       <select id="posProdutoSelect" onchange="aoSelecionarProdutoLista()">
         <option value="">Selecione um produto...</option>
-        ${state.produtos.map(p => `<option value="${p.id}">${p.nome}${p.codigoInterno ? ' ('+p.codigoInterno+')' : ''}</option>`).join('')}
+        ${state.produtos.map(p => `<option value="${p.id}">${p.nome}${p.codigoInterno ? ' (' + p.codigoInterno + ')' : ''}</option>`).join('')}
       </select>
     </div>
 
@@ -1456,7 +1467,7 @@ function buscarProdutoParaPosicao() {
       const bc = norm(p.barcode);
       if (!ci && !bc) return false;
       return (ci && ci.includes(codNorm)) || (bc && bc.includes(codNorm)) ||
-             (ci && codNorm.includes(ci)) || (bc && codNorm.includes(bc));
+        (ci && codNorm.includes(ci)) || (bc && codNorm.includes(bc));
     });
   }
 
@@ -1594,9 +1605,9 @@ function salvarPosicao() {
   }
 
   let pid = state.currentPosicaoEdit.produtoIdentificado
-         || state.currentPosicaoEdit.produtoId
-         || (document.getElementById('posProdutoSelect')?.value)
-         || null;
+    || state.currentPosicaoEdit.produtoId
+    || (document.getElementById('posProdutoSelect')?.value)
+    || null;
 
   if (!pid) {
     const inputCod = document.getElementById('posCodigoProduto');
@@ -1641,7 +1652,7 @@ function salvarPosicao() {
   }
 
   const isAdicao = !state.currentPosicaoEdit.quantidadeAtual
-                && !s.produtos.find(x => parseInt(x.posicao) === parseInt(posicaoNum));
+    && !s.produtos.find(x => parseInt(x.posicao) === parseInt(posicaoNum));
 
   if (isAdicao) {
     if (nq <= 0) {
@@ -1925,8 +1936,8 @@ function editarProduto(id) {
     <div class="modal-block modal-block-warning">
       <label style="font-weight:bold;">💉 Injetado vinculado (para desconto automático)</label>
       ${isKit
-        ? `<div class="info-box"><strong>Kit</strong> desconta automaticamente:<br>• 1× C2N por caixa<br>• 0.2× CUNHA(V) por caixa (5 Kit = 1 Cunha)</div>`
-        : `<select id="editProdInjecaoVinculo">${injecaoOptions}</select>`}
+      ? `<div class="info-box"><strong>Kit</strong> desconta automaticamente:<br>• 1× C2N por caixa<br>• 0.2× CUNHA(V) por caixa (5 Kit = 1 Cunha)</div>`
+      : `<select id="editProdInjecaoVinculo">${injecaoOptions}</select>`}
     </div>`;
 
   state.currentEdit = { produtoId: id };
@@ -2260,9 +2271,9 @@ function adicionarCodigoLido() {
       const bc = (p.barcode || '').toUpperCase();
       if (!ci && !bc) return false;
       return (ci && ci.includes(codigo)) ||
-             (bc && bc.includes(codigo)) ||
-             (ci && codigo.includes(ci)) ||
-             (bc && codigo.includes(bc));
+        (bc && bc.includes(codigo)) ||
+        (ci && codigo.includes(ci)) ||
+        (bc && codigo.includes(bc));
     });
   }
 
@@ -2333,9 +2344,9 @@ function atualizarLeitor() {
 
   detalhamento.innerHTML = `<table><thead><tr><th>Código</th><th>Produto</th><th>Pacotes</th><th>Caixas</th></tr></thead><tbody>
     ${codigos.map(cod => {
-      const i = state.pedidoAtual[cod];
-      return `<tr><td>${cod}</td><td>${i.nome}</td><td>${i.qtd}</td><td>${Math.floor(i.qtd / i.pacotesPorVolume)}</td></tr>`;
-    }).join('')}</tbody></table>`;
+    const i = state.pedidoAtual[cod];
+    return `<tr><td>${cod}</td><td>${i.nome}</td><td>${i.qtd}</td><td>${Math.floor(i.qtd / i.pacotesPorVolume)}</td></tr>`;
+  }).join('')}</tbody></table>`;
 
   let tp = 0, tv = 0, te = 0;
   codigos.forEach(cod => {
@@ -2381,7 +2392,7 @@ function abrirCameraParaCampo(campoId, callback) {
   if (html5QrCodeCamera) {
     html5QrCodeCamera.stop()
       .then(() => html5QrCodeCamera.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         html5QrCodeCamera = null;
         setTimeout(() => iniciarCamera(campoId, callback), 250);
@@ -2396,14 +2407,14 @@ function iniciarCamera(campoId, callback) {
   if (window.Html5QrcodeSupportedFormats) {
     const F = window.Html5QrcodeSupportedFormats;
     [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.CODABAR,
-     F.EAN_13, F.EAN_8, F.ITF, F.UPC_A, F.UPC_E,
-     F.DATA_MATRIX, F.PDF_417, F.AZTEC
+    F.EAN_13, F.EAN_8, F.ITF, F.UPC_A, F.UPC_E,
+    F.DATA_MATRIX, F.PDF_417, F.AZTEC
     ].forEach(f => { if (f !== undefined) formatos.push(f); });
   }
 
   const config = {
     fps: 20,
-    qrbox: function(viewfinderWidth, viewfinderHeight) {
+    qrbox: function (viewfinderWidth, viewfinderHeight) {
       const min = Math.min(viewfinderWidth, viewfinderHeight);
       return { width: Math.floor(min * 0.9), height: Math.floor(min * 0.6) };
     },
@@ -2429,12 +2440,12 @@ function iniciarCamera(campoId, callback) {
     (decodedText) => {
       const campo = document.getElementById(campoId);
       if (campo) campo.value = decodedText;
-      try { if (navigator.vibrate) navigator.vibrate(100); } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate(100); } catch (e) { }
       fecharCamera();
       mostrarToast('✅ Código capturado!', 'success');
       if (typeof callback === 'function') callback();
     },
-    () => {}
+    () => { }
   ).catch(err => {
     console.error('Erro da câmera:', err);
     fecharCamera();
@@ -2448,7 +2459,7 @@ function fecharCamera() {
   if (html5QrCodeCamera) {
     html5QrCodeCamera.stop()
       .then(() => html5QrCodeCamera.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { html5QrCodeCamera = null; });
   }
 }
@@ -2701,7 +2712,7 @@ function importarDados() {
       return m;
     });
     state.injetados = imp.injetados || [];
-    state.materiaPrima = imp.materiaPrima || { tipos: ['PP','PE','PET','PS','PVC','ECO'], estoque: {} };
+    state.materiaPrima = imp.materiaPrima || { tipos: ['PP', 'PE', 'PET', 'PS', 'PVC', 'ECO'], estoque: {} };
     state.pedidoCargaAtual = imp.pedidoCargaAtual || { ativo: false, codigo: '', itens: {} };
     if (!state.pedidoCargaAtual.itens) state.pedidoCargaAtual.itens = {};
     state.produtos = state.produtos.map(p => {
@@ -3400,10 +3411,10 @@ function atualizarListasPedidos() {
       return `<div class="pedido-card">
         <div class="pedido-codigo">📋 ${p.codigo}</div>
         <div class="pedido-itens">${Object.values(p.itens).map(i => {
-          const res = state.carga.filter(c => c.id === i.produtoId && c.pedidoCodigo === p.codigo).reduce((a, c) => a + c.quantidade, 0);
-          const falta = Math.max(0, i.pacotes - res);
-          return `${i.nome}: ${i.pacotes} cx (Reserv: ${res}, Produzir: ${falta})`;
-        }).join('; ') || 'Nenhum item'}</div>
+        const res = state.carga.filter(c => c.id === i.produtoId && c.pedidoCodigo === p.codigo).reduce((a, c) => a + c.quantidade, 0);
+        const falta = Math.max(0, i.pacotes - res);
+        return `${i.nome}: ${i.pacotes} cx (Reserv: ${res}, Produzir: ${falta})`;
+      }).join('; ') || 'Nenhum item'}</div>
         <div class="pedido-total-caixas">📦 ${tv} vol(s) | ${tc} caixas</div>
         <div class="pedido-acoes">
           <button class="btn btn-sm btn-info" onclick="editarPedido('${p.codigo}')">✏️ Editar</button>
@@ -4183,14 +4194,14 @@ function abrirScannerProdutoParaCampo(campoId, callback) {
     }
     mostrarToast(`✅ Código capturado!`, 'success');
   };
-  
+
   const modal = document.getElementById('modalScannerProduto');
   if (!modal) { alert('❌ Modal do scanner não encontrado!'); return; }
-  
+
   modal.style.display = 'flex';
   const input = document.getElementById('scannerProdutoInput');
   if (input) input.value = '';
-  
+
   setTimeout(iniciarCameraScannerProduto, 250);
 }
 
@@ -4202,7 +4213,7 @@ function iniciarCameraScannerProduto() {
   if (html5QrCodeScannerProduto) {
     html5QrCodeScannerProduto.stop()
       .then(() => html5QrCodeScannerProduto.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         html5QrCodeScannerProduto = null;
         criarInstanciaScannerProduto();
@@ -4225,14 +4236,14 @@ function criarInstanciaScannerProduto() {
   if (window.Html5QrcodeSupportedFormats) {
     const F = window.Html5QrcodeSupportedFormats;
     [F.CODE_128, F.CODE_39, F.CODE_93, F.CODABAR,
-     F.EAN_13, F.EAN_8, F.ITF, F.UPC_A, F.UPC_E,
-     F.QR_CODE, F.DATA_MATRIX, F.PDF_417, F.AZTEC
+    F.EAN_13, F.EAN_8, F.ITF, F.UPC_A, F.UPC_E,
+    F.QR_CODE, F.DATA_MATRIX, F.PDF_417, F.AZTEC
     ].forEach(f => { if (f !== undefined) formatos.push(f); });
   }
 
   const config = {
     fps: 20,
-    qrbox: function(w, h) {
+    qrbox: function (w, h) {
       const min = Math.min(w, h);
       return { width: Math.floor(min * 0.9), height: Math.floor(min * 0.5) };
     },
@@ -4253,10 +4264,10 @@ function criarInstanciaScannerProduto() {
     { facingMode: "environment" },
     config,
     (decodedText) => {
-      try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) { }
       processarCodigoScannerProduto(decodedText);
     },
-    () => {}
+    () => { }
   ).catch(err => {
     console.error('Erro câmera produto:', err);
     mostrarToast('❌ Erro ao acessar câmera: ' + (err?.message || 'verifique permissões'), 'error');
@@ -4298,7 +4309,7 @@ function fecharScannerProduto() {
   if (html5QrCodeScannerProduto) {
     html5QrCodeScannerProduto.stop()
       .then(() => html5QrCodeScannerProduto.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { html5QrCodeScannerProduto = null; });
   }
   scannerProdutoCallback = null;
@@ -4328,7 +4339,7 @@ function iniciarCameraScannerPrateleira() {
   if (html5QrCodeScannerPrateleira) {
     html5QrCodeScannerPrateleira.stop()
       .then(() => html5QrCodeScannerPrateleira.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         html5QrCodeScannerPrateleira = null;
         criarInstanciaScannerPrateleira();
@@ -4349,7 +4360,7 @@ function criarInstanciaScannerPrateleira() {
 
   const config = {
     fps: 20,
-    qrbox: function(w, h) {
+    qrbox: function (w, h) {
       const min = Math.min(w, h);
       return { width: Math.floor(min * 0.85), height: Math.floor(min * 0.85) };
     },
@@ -4360,10 +4371,10 @@ function criarInstanciaScannerPrateleira() {
     { facingMode: "environment" },
     config,
     (decodedText) => {
-      try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate(120); } catch (e) { }
       processarCodigoScannerPrateleira(decodedText);
     },
-    () => {}
+    () => { }
   ).catch(err => {
     console.error('Erro câmera scanner:', err);
     mostrarToast('❌ Erro ao acessar câmera: ' + (err?.message || 'verifique permissões'), 'error');
@@ -4410,7 +4421,7 @@ function fecharScannerPrateleira() {
   if (html5QrCodeScannerPrateleira) {
     html5QrCodeScannerPrateleira.stop()
       .then(() => html5QrCodeScannerPrateleira.clear())
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { html5QrCodeScannerPrateleira = null; });
   }
   scannerPrateleiraCallback = null;
@@ -4466,48 +4477,48 @@ function abrirScannerParaCampo(campoId) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', function () {
   setTimeout(() => {
-  if (typeof injetarBotoesPDF === 'function') {
-    injetarBotoesPDF();
-  }
+    if (typeof injetarBotoesPDF === 'function') {
+      injetarBotoesPDF();
+    }
   }, 500);
 
   const inputLeitor = document.getElementById('codigoLido');
   if (inputLeitor) {
-    inputLeitor.addEventListener('keydown', function(e) {
+    inputLeitor.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); adicionarCodigoLido(); }
     });
   }
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
-    .then(() => console.log('Service Worker registrado (PWA ativo)'))
-    .catch(err => console.error('Erro no SW:', err));
+      .then(() => console.log('Service Worker registrado (PWA ativo)'))
+      .catch(err => console.error('Erro no SW:', err));
   }
 
   const inputManualPrat = document.getElementById('scannerPrateleiraInput');
   if (inputManualPrat) {
-    inputManualPrat.addEventListener('keydown', function(e) {
+    inputManualPrat.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); confirmarScannerPrateleiraManual(); }
     });
   }
 
   const inputManualProd = document.getElementById('scannerProdutoInput');
   if (inputManualProd) {
-    inputManualProd.addEventListener('keydown', function(e) {
+    inputManualProd.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); confirmarScannerProdutoManual(); }
     });
   }
 
   const inputMovProd = document.getElementById('movProdutoInput');
   if (inputMovProd) {
-    inputMovProd.addEventListener('keydown', function(e) {
+    inputMovProd.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); identificarProdutoMovimentacao(); }
     });
   }
 
   const inputAddProd = document.getElementById('addCodigoProdutoInput');
   if (inputAddProd) {
-    inputAddProd.addEventListener('keydown', function(e) {
+    inputAddProd.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); buscarProdutoPorCodigo(); }
     });
   }
@@ -4523,37 +4534,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
 const _atualizarListasPedidosOriginal = typeof atualizarListasPedidos === 'function' ? atualizarListasPedidos : null;
 if (_atualizarListasPedidosOriginal) {
-  window.atualizarListasPedidos = function() {
+  window.atualizarListasPedidos = function () {
     _atualizarListasPedidosOriginal();
     setTimeout(() => {
-  if (typeof injetarBotoesPDF === 'function') {
-    injetarBotoesPDF();
-  }
-}, 50);
+      if (typeof injetarBotoesPDF === 'function') {
+        injetarBotoesPDF();
+      }
+    }, 50);
   };
 }
 
 const _carregarCargaOriginal = typeof carregarCarga === 'function' ? carregarCarga : null;
 if (_carregarCargaOriginal) {
-  window.carregarCarga = function() {
+  window.carregarCarga = function () {
     _carregarCargaOriginal();
     setTimeout(() => {
-  if (typeof injetarBotoesPDF === 'function') {
-    injetarBotoesPDF();
-  }
-}, 50);
+      if (typeof injetarBotoesPDF === 'function') {
+        injetarBotoesPDF();
+      }
+    }, 50);
   };
 }
 
 const _mostrarSubAbaOriginal = typeof mostrarSubAba === 'function' ? mostrarSubAba : null;
 if (_mostrarSubAbaOriginal) {
-  window.mostrarSubAba = function(sub) {
+  window.mostrarSubAba = function (sub) {
     _mostrarSubAbaOriginal(sub);
     setTimeout(() => {
-  if (typeof injetarBotoesPDF === 'function') {
-    injetarBotoesPDF();
-  }
-}, 50);
+      if (typeof injetarBotoesPDF === 'function') {
+        injetarBotoesPDF();
+      }
+    }, 50);
   };
 }
 
