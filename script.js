@@ -556,7 +556,6 @@ async function carregarDaNuvem() {
   const { data, error } = await window.supabase
     .from('backups')
     .select('data')
-    .eq('user_id', usuarioSupabase.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
