@@ -11,6 +11,8 @@ if (
   window.supabase &&
   typeof window.supabase.createClient === 'function'
 ) {
+  const supabaseBiblioteca = window.supabase;
+
   supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY,
@@ -22,6 +24,7 @@ if (
       }
     }
   );
+  window.supabase = supabaseClient;
 
   console.log('Supabase inicializado com sucesso.');
 } else {
