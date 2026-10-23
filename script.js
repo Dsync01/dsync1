@@ -356,10 +356,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fallback
     setTimeout(() => {
       if (window.supabase) {
-        window.supabase.auth.getSession().then(({ data: { session } }) => {
+        window.supabase.auth.getSession().then(async ({ data: { session } }) => {
           if (session) {
             usuarioSupabase = session.user;
             state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
+            console.log('✅ Sessão restaurada (fallback):', session.user.email);
             entrarApp();
           } else {
             document.getElementById('loginScreen').style.display = 'flex';
@@ -1694,27 +1695,73 @@ function salvarPosicao() {
 
 function closeModalPosicao() { document.getElementById('modalPosicao').style.display = 'none'; state.currentPosicaoEdit = null; }
 
+
 function removerDaPrateleira(shelfId, produtoId, posicao) {
   if (!confirm('Remover da prateleira?')) return;
-  const s = state.prateleiras.find(x => x.id === shelfId);
-  if (!s) return;
-  salvarEstadoParaUndo();
-  const idx = s.produtos.findIndex(x => x.id === produtoId && x.posicao === posicao);
-  if (idx !== -1) {
-    const p = s.produtos[idx];
-    const produto = state.produtos.find(x => x.id === produtoId);
-    if (produto) produto.quantidade = Math.max(0, (produto.quantidade || 0) - p.quantidade);
-    devolverInsumos(produtoId, p.quantidade);
-    state.carga = state.carga.filter(c => !(c.id === produtoId && c.prateleira === shelfId && c.posicao === posicao));
-    setData(STORAGE_KEYS.carga, state.carga);
-    registrarHistorico(produto?.nome || 'Produto', 'Remoção da prateleira', p.quantidade, `${s.nome}-${posicao} | Insumos devolvidos`);
-    s.produtos.splice(idx, 1);
+
+  const s = state.prateleiras.find(x => String(x.id) === String(shelfId));
+  if (!s) {
+    console.error('Prateleira não encontrada:', shelfId);
+    return;
   }
+
+  salvarEstadoParaUndo();
+
+  const idx = s.produtos.findIndex(x =>
+    String(x.id) === String(produtoId) &&
+    String(x.posicao) === String(posicao)
+  );
+
+  if (idx === -1) {
+    console.error('Produto não encontrado na posição:', {
+      shelfId,
+      produtoId,
+      posicao,
+      produtosNaPrateleira: s.produtos
+    });
+    mostrarToast('❌ Não foi possível localizar esse produto.', 'error');
+    return;
+  }
+
+  const p = s.produtos[idx];
+  const produto = state.produtos.find(
+    x => String(x.id) === String(produtoId)
+  );
+
+  if (produto) {
+    produto.quantidade = Math.max(
+      0,
+      (produto.quantidade || 0) - (p.quantidade || 0)
+    );
+  }
+
+  devolverInsumos(produtoId, p.quantidade);
+
+  state.carga = state.carga.filter(c =>
+    !(
+      String(c.id) === String(produtoId) &&
+      String(c.prateleira) === String(shelfId) &&
+      String(c.posicao) === String(posicao)
+    )
+  );
+
+  s.produtos.splice(idx, 1);
+
+  setData(STORAGE_KEYS.carga, state.carga);
   setData(STORAGE_KEYS.prateleiras, state.prateleiras);
   setData(STORAGE_KEYS.produtos, state.produtos);
+
+  registrarHistorico(
+    produto?.nome || 'Produto',
+    'Remoção da prateleira',
+    p.quantidade,
+    `${s.nome}-${posicao} | Insumos devolvidos`
+  );
+
   atualizarTudo();
   mostrarToast('🗑️ Removido!', 'warning');
 }
+
 
 // ===== SEPARAÇÃO =====
 function abrirSeparacao(shelfId, produtoId, posicao) {
