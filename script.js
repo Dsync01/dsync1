@@ -4334,7 +4334,11 @@ function abrirScannerParaCampo(campoId) {
 // EVENTOS GLOBAIS E HOOKS
 // ============================================================
 document.addEventListener('DOMContentLoaded', function () {
-  setTimeout(injetarBotoesPDF, 500);
+  setTimeout(() => {
+  if (typeof injetarBotoesPDF === 'function') {
+    injetarBotoesPDF();
+  }
+  }, 500);
 
   const inputLeitor = document.getElementById('codigoLido');
   if (inputLeitor) {
@@ -4390,7 +4394,11 @@ const _atualizarListasPedidosOriginal = typeof atualizarListasPedidos === 'funct
 if (_atualizarListasPedidosOriginal) {
   window.atualizarListasPedidos = function() {
     _atualizarListasPedidosOriginal();
-    setTimeout(injetarBotoesPDF, 50);
+    setTimeout(() => {
+  if (typeof injetarBotoesPDF === 'function') {
+    injetarBotoesPDF();
+  }
+}, 50);
   };
 }
 
@@ -4398,7 +4406,11 @@ const _carregarCargaOriginal = typeof carregarCarga === 'function' ? carregarCar
 if (_carregarCargaOriginal) {
   window.carregarCarga = function() {
     _carregarCargaOriginal();
-    setTimeout(injetarBotoesPDF, 50);
+    setTimeout(() => {
+  if (typeof injetarBotoesPDF === 'function') {
+    injetarBotoesPDF();
+  }
+}, 50);
   };
 }
 
@@ -4406,7 +4418,11 @@ const _mostrarSubAbaOriginal = typeof mostrarSubAba === 'function' ? mostrarSubA
 if (_mostrarSubAbaOriginal) {
   window.mostrarSubAba = function(sub) {
     _mostrarSubAbaOriginal(sub);
-    setTimeout(injetarBotoesPDF, 50);
+    setTimeout(() => {
+  if (typeof injetarBotoesPDF === 'function') {
+    injetarBotoesPDF();
+  }
+}, 50);
   };
 }
 
