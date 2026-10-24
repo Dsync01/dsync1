@@ -339,20 +339,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const emailAdmin = 'admin@admin.com';
 
         state.usuarioAtual = {
-          id: data.user.id,
-          nome: nomeUsuario,
-          tipo: data.user.email?.toLowerCase() === emailAdmin ? 'admin' : 'usuario'
+          id: session.user.id,
+          nome: session.user.email,
+          tipo: session.user.email?.toLowerCase() === emailAdmin ? 'admin' : 'usuario'
         };
-      };
 
-      console.log('✅ Sessão restaurada:', session.user.email);
+        console.log('✅ Sessão restaurada:', session.user.email);
 
-      await carregarDaNuvem();
-      entrarApp();
-    } else {
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('appContent').style.display = 'none';
-    }
+        await carregarDaNuvem();
+        entrarApp();
+      } else {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContent').style.display = 'none';
+      }
 
     });
   } else {
