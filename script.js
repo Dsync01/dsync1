@@ -339,9 +339,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const emailAdmin = 'admin@admin.com';
 
         state.usuarioAtual = {
-          id: session.user.id,
-          nome: session.user.email,
-          tipo: session.user.email?.toLowerCase() === emailAdmin ? 'admin' : 'usuario'
+          id: data.user.id,
+          nome: nomeUsuario,
+          tipo: data.user.email?.toLowerCase() === emailAdmin
+            ? 'admin'
+            : 'usuario'
         };
 
         console.log('✅ Sessão restaurada:', session.user.email);
@@ -355,23 +357,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     });
   } else {
-  // Fallback
-  setTimeout(() => {
-    if (window.supabase) {
-      window.supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (session) {
-          usuarioSupabase = session.user;
-          state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
-          console.log('✅ Sessão restaurada (fallback):', session.user.email);
-          entrarApp();
-        } else {
-          document.getElementById('loginScreen').style.display = 'flex';
-          document.getElementById('appContent').style.display = 'none';
-        }
-      });
-    }
-  }, 1000);
-}
+    // Fallback
+    setTimeout(() => {
+      if (window.supabase) {
+        window.supabase.auth.getSession().then(async ({ data: { session } }) => {
+          if (session) {
+            usuarioSupabase = session.user;
+            state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
+            console.log('✅ Sessão restaurada (fallback):', session.user.email);
+            entrarApp();
+          } else {
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('appContent').style.display = 'none';
+          }
+        });
+      }
+    }, 1000);
+  }
 
 }); function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
