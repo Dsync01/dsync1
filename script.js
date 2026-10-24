@@ -850,7 +850,7 @@ function inicializarApp() {
   verificarEstoque();
   renderizarInsumos();
   verificarAlertasInsumos();
-  mostrarToast('✅ Bem-vindo, ' + (state.usuarioAtual?.nome || 'Usuário') + '!', 'success');
+  mostrarToast('✅ Bem-vindo, ' + (state.usuarioAtual?.nomeUsuario || 'Usuário') + '!', 'success');
 }
 
 // ===== INSUMOS =====
