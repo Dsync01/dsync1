@@ -336,40 +336,43 @@ document.addEventListener('DOMContentLoaded', function () {
       if (session) {
         usuarioSupabase = session.user;
 
+        const emailAdmin = 'admin@admin.com';
+
         state.usuarioAtual = {
-          id: session.user.id,
-          nome: session.user.email,
-          tipo: 'admin'
+          id: data.user.id,
+          nome: nomeUsuario,
+          tipo: data.user.email?.toLowerCase() === emailAdmin ? 'admin' : 'usuario'
         };
+      };
 
-        console.log('✅ Sessão restaurada:', session.user.email);
+      console.log('✅ Sessão restaurada:', session.user.email);
 
-        await carregarDaNuvem();
-        entrarApp();
-      } else {
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContent').style.display = 'none';
-      }
+      await carregarDaNuvem();
+      entrarApp();
+    } else {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('appContent').style.display = 'none';
+    }
 
     });
   } else {
-    // Fallback
-    setTimeout(() => {
-      if (window.supabase) {
-        window.supabase.auth.getSession().then(async ({ data: { session } }) => {
-          if (session) {
-            usuarioSupabase = session.user;
-            state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
-            console.log('✅ Sessão restaurada (fallback):', session.user.email);
-            entrarApp();
-          } else {
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContent').style.display = 'none';
-          }
-        });
-      }
-    }, 1000);
-  }
+  // Fallback
+  setTimeout(() => {
+    if (window.supabase) {
+      window.supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session) {
+          usuarioSupabase = session.user;
+          state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
+          console.log('✅ Sessão restaurada (fallback):', session.user.email);
+          entrarApp();
+        } else {
+          document.getElementById('loginScreen').style.display = 'flex';
+          document.getElementById('appContent').style.display = 'none';
+        }
+      });
+    }
+  }, 1000);
+}
 
 }); function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
@@ -688,7 +691,7 @@ function entrarApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appContent').style.display = 'block';
   document.getElementById('perfilUsuario').textContent = '👤 ' + (state.usuarioAtual?.nome || 'Usuário');
-  /*document.getElementById('perfilNivel').textContent = state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';*/
+  document.getElementById('perfilNivel').textContent = state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';
   document.getElementById('tabUsuarios').style.display = state.usuarioAtual?.tipo === 'admin' ? 'inline-block' : 'none';
 
   document.body.classList.remove('tab-dashboard', 'tab-estoque', 'tab-pedidos', 'tab-injecao', 'tab-usuarios');
