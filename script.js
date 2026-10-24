@@ -330,18 +330,30 @@ document.addEventListener('DOMContentLoaded', function () {
   carregarInsumos();
   carregarPedidoCarga();
 
+
   // Tenta recuperar sessão do Supabase
   if (window.supabase) {
-    window.supabase.auth.getSession().then(async ({ data: { session } }) => {
+    window.supabase.auth.getSession().then(async ({ data, error }) => {
+      if (error) {
+        console.error('Erro ao recuperar sessão:', error);
+      }
+
+      const session = data?.session;
+
       if (session) {
         usuarioSupabase = session.user;
 
         const emailAdmin = 'admin@admin.com';
+        const nomeUsuario =
+          session.user.user_metadata?.nome ||
+          session.user.user_metadata?.display_name ||
+          session.user.user_metadata?.full_name ||
+          session.user.email;
 
         state.usuarioAtual = {
-          id: data.user.id,
+          id: session.user.id,
           nome: nomeUsuario,
-          tipo: data.user.email?.toLowerCase() === emailAdmin
+          tipo: session.user.email?.toLowerCase() === emailAdmin
             ? 'admin'
             : 'usuario'
         };
@@ -354,28 +366,16 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('appContent').style.display = 'none';
       }
-
+    }).catch((erro) => {
+      console.error('Erro ao verificar sessão:', erro);
     });
   } else {
-    // Fallback
-    setTimeout(() => {
-      if (window.supabase) {
-        window.supabase.auth.getSession().then(async ({ data: { session } }) => {
-          if (session) {
-            usuarioSupabase = session.user;
-            state.usuarioAtual = { id: session.user.id, nome: session.user.email, tipo: 'admin' };
-            console.log('✅ Sessão restaurada (fallback):', session.user.email);
-            entrarApp();
-          } else {
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContent').style.display = 'none';
-          }
-        });
-      }
-    }, 1000);
+    console.error('Supabase ainda não foi carregado.');
   }
+});
 
-}); function carregarDados() {
+
+function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
   state.prateleiras = getData(STORAGE_KEYS.prateleiras, []);
   state.carga = getData(STORAGE_KEYS.carga, []);
