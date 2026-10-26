@@ -687,6 +687,7 @@ async function carregarDaNuvem() {
   const { data, error } = await window.supabase
     .from('backups')
     .select('data')
+    .eq('user_id', usuarioSupabase.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
@@ -886,7 +887,6 @@ function iniciarTimerProducao() {
 
 // ===== INICIALIZAR APP =====
 function inicializarApp() {
-  carregarInsumos();
   const inicializado = getData(STORAGE_KEYS.initialized, false);
   if (state.prateleiras.length === 0) criarPrateleirasPadrao();
   if (state.produtos.length === 0 && !inicializado) criarProdutosExemplo();
