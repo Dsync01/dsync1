@@ -4493,9 +4493,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('Service Worker registrado (PWA ativo)'))
+    navigator.serviceWorker.register('/DSYNC1/sw.js', { scope: '/DSYNC1/' })
+      .then(() => console.log('✅ Service Worker registrado com escopo correto'))
       .catch(err => console.error('Erro no SW:', err));
   }
 
