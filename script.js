@@ -1176,8 +1176,10 @@ function renderizarInsumos() {
         <td style="color:var(--text-muted);font-size:11px;">${alerta}</td>
       </tr>`;
 
-  console.log('CLIQUEI NO BOTAO ATUALIZAR INSUMOS');
+ 
   });
+
+  
 
   const alertaA = state.insumos.caixaModeloA <= state.configInsumos.alertaCaixaModeloA;
   const alertaB = state.insumos.caixaModeloB <= state.configInsumos.alertaCaixaModeloB;
@@ -1218,7 +1220,7 @@ function renderizarInsumos() {
       </div>
     </div>`;
 }
-
+function ApertarBotaoAtualizar(){ console.log('CLIQUEI NO BOTAO ATUALIZAR INSUMOS'); }
 // ===== PRATELEIRAS =====
 function renderPosicaoOcupada(shelf, posNum, pos) {
   const info = state.produtos.find(p => p.id === pos.id);
