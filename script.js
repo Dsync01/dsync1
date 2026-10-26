@@ -731,7 +731,7 @@ async function carregarDaNuvem() {
   state.injecao = dados.injecao || [];
   state.injetando = dados.injetando || [];
   state.injetados = dados.injetados || [];
-  state.materiaPrima = dados.materiaPrima || [];
+  state.materiaPrima = dados.materiaPrima || { tipos: [], estoque: {} };
   state.pedidoCargaAtual = dados.pedidoCargaAtual || null;
 
   if (typeof atualizarTudo === 'function') {
@@ -3478,20 +3478,30 @@ function limparInjetados() {
   mostrarToast('🧹 Limpo!', 'success');
 }
 
+
 function renderizarMateriaPrima() {
   const c = document.getElementById('materiaPrimaContainer');
   if (!c) return;
+
+  const mp = state.materiaPrima || {};
+  const tipos = Array.isArray(mp.tipos) ? mp.tipos : [];
+  const estoque = mp.estoque || {};
+
   let h = '<h3 style="color:var(--text);">🧪 Estoque de Matéria Prima (sacos)</h3><div class="mp-grid">';
-  state.materiaPrima.tipos.forEach(t => {
-    const q = state.materiaPrima.estoque[t] || 0;
+
+  tipos.forEach(t => {
+    const q = estoque[t] || 0;
     h += `<div class="mp-card">
       <strong class="mp-card-nome">${t}</strong>
-      <span class="mp-card-valor">${q}</span> <span class="mp-card-unidade">sacos</span>
+      <span class="mp-card-valor">${q}</span>
+      <span class="mp-card-unidade">sacos</span>
     </div>`;
   });
+
   h += '</div>';
   c.innerHTML = h;
 }
+
 
 function abrirModalEntradaMateriaPrima() {
   const ops = state.materiaPrima.tipos.map(t => `<option value="${t}">${t}</option>`).join('');
