@@ -390,11 +390,6 @@ function carregarDados() {
   state.injetados = getData(STORAGE_KEYS.injetados, []);
   state.materiaPrima = getData(STORAGE_KEYS.materiaPrima, { tipos: ['PP', 'PE', 'PET', 'PS', 'PVC', 'ECO'], estoque: {} });
 
-  if (state.usuarios.length === 0) {
-    state.usuarios = [{ id: 'admin', nome: 'admin', senha: 'admin123', tipo: 'admin' }];
-    setData(STORAGE_KEYS.usuarios, state.usuarios);
-  }
-
   state.prateleiras = state.prateleiras.map(shelf => {
     const produtos = (shelf.produtos || []).map(prod => {
       if (prod.posicao && typeof prod.posicao === 'string') {
