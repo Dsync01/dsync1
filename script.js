@@ -3479,6 +3479,7 @@ function limparInjetados() {
 }
 
 
+
 function renderizarMateriaPrima() {
   const c = document.getElementById('materiaPrimaContainer');
   if (!c) return;
@@ -3501,6 +3502,7 @@ function renderizarMateriaPrima() {
   h += '</div>';
   c.innerHTML = h;
 }
+
 
 
 function abrirModalEntradaMateriaPrima() {
