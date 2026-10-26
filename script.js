@@ -723,7 +723,14 @@ async function carregarDaNuvem() {
   state.prateleiras = dados.prateleiras || [];
   state.carga = dados.carga || [];
   state.historico = dados.historico || [];
-  state.insumos = dados.insumos || [];
+
+  state.insumos = dados.insumos || {
+    embalagens: {},
+    caixaModeloA: 0,
+    caixaModeloB: 0,
+    embalagem40x50: 0
+  };
+  
   state.configInsumos = dados.configInsumos || {};
   state.produtoInsumoMap = dados.produtoInsumoMap || {};
   state.pedidosSeparar = dados.pedidosSeparar || [];
@@ -1219,21 +1226,18 @@ function renderizarInsumos() {
     </div>`;
 }
 
-function atualizarAbaInsumos() {
+async function atualizarAbaInsumos() {
   const container = document.getElementById('insumosContainer');
 
   if (!container) {
     console.error('Container de insumos não encontrado.');
-    alert('Erro: área de insumos não encontrada.');
     return;
   }
 
   try {
-    console.log('Atualizando aba Insumos...');
+    mostrarToast('🔄 Atualizando insumos...', 'info');
 
-    if (typeof renderizarInsumos !== 'function') {
-      throw new Error('A função renderizarInsumos não foi encontrada.');
-    }
+    await carregarDaNuvem();
 
     renderizarInsumos();
 
@@ -1241,14 +1245,12 @@ function atualizarAbaInsumos() {
       verificarAlertasInsumos();
     }
 
-    console.log('Atualização da aba Insumos concluída.');
-
+    mostrarToast('✅ Insumos atualizados!', 'success');
   } catch (erro) {
-    console.error('Erro ao atualizar Insumos:', erro);
-    alert('Erro ao atualizar Insumos: ' + erro.message);
+    console.error('Erro ao atualizar insumos:', erro);
+    mostrarToast('❌ Erro ao atualizar insumos.', 'error');
   }
 }
-
 
 // ===== PRATELEIRAS =====
 function renderPosicaoOcupada(shelf, posNum, pos) {
