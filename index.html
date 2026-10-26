@@ -568,7 +568,7 @@
                             <button class="primary" onclick="abrirModalInsumos()">
                                 ✏️ Editar Insumos
                             </button>
-                            <button class="info" onclick="atualizarInsumos()">
+                            <button class="info" onclick="atualizarAbaInsumos()">
                                 🔄 Atualizar
                             </button>
                         </div>
@@ -1158,53 +1158,40 @@
             </div>
         </div>
 
-       
-<div class="modal" id="modalUsuario">
-    <div class="modal-content">
-        <h2 id="modalUsuarioTitle">👤 Adicionar Usuário</h2>
 
-        <div id="modalUsuarioBody">
-            <label>Nome do Usuário *</label>
-            <input
-                type="text"
-                id="editUsuarioNome"
-                placeholder="Digite o nome do usuário"
-                autocomplete="name"
-            />
+        <div class="modal" id="modalUsuario">
+            <div class="modal-content">
+                <h2 id="modalUsuarioTitle">👤 Adicionar Usuário</h2>
 
-            <label>E-mail *</label>
-            <input
-                type="email"
-                id="editUsuarioEmail"
-                placeholder="usuario@exemplo.com"
-                autocomplete="email"
-            />
+                <div id="modalUsuarioBody">
+                    <label>Nome do Usuário *</label>
+                    <input type="text" id="editUsuarioNome" placeholder="Digite o nome do usuário"
+                        autocomplete="name" />
 
-            <label>Senha *</label>
-            <input
-                type="password"
-                id="editUsuarioSenha"
-                placeholder="Mínimo de 6 caracteres"
-                autocomplete="new-password"
-            />
+                    <label>E-mail *</label>
+                    <input type="email" id="editUsuarioEmail" placeholder="usuario@exemplo.com" autocomplete="email" />
 
-            <label>Tipo de Usuário</label>
-            <select id="editUsuarioTipo">
-                <option value="usuario">👤 Usuário</option>
-                <option value="admin">👑 Administrador</option>
-            </select>
+                    <label>Senha *</label>
+                    <input type="password" id="editUsuarioSenha" placeholder="Mínimo de 6 caracteres"
+                        autocomplete="new-password" />
+
+                    <label>Tipo de Usuário</label>
+                    <select id="editUsuarioTipo">
+                        <option value="usuario">👤 Usuário</option>
+                        <option value="admin">👑 Administrador</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModalUsuario()">
+                        Cancelar
+                    </button>
+                    <button class="btn-save" onclick="salvarUsuario()">
+                        Salvar
+                    </button>
+                </div>
+            </div>
         </div>
-
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeModalUsuario()">
-                Cancelar
-            </button>
-            <button class="btn-save" onclick="salvarUsuario()">
-                Salvar
-            </button>
-        </div>
-    </div>
-</div>
 
         <div class="modal" id="modalCarga">
             <div class="modal-content">
