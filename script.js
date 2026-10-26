@@ -1219,6 +1219,13 @@ function renderizarInsumos() {
     </div>`;
 }
 
+function atualizarInsumos() {
+  renderizarInsumos();
+  verificarAlertasInsumos();
+  atualizarDashboard();
+}
+
+
 // ===== PRATELEIRAS =====
 function renderPosicaoOcupada(shelf, posNum, pos) {
   const info = state.produtos.find(p => p.id === pos.id);
