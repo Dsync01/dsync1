@@ -2537,18 +2537,50 @@ function fecharCamera() {
 }
 
 // ===== DASHBOARD =====
+
 function atualizarDashboard() {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('dashTotalProdutos', state.produtos.length);
-  set('dashProdutosBanco', state.produtos.filter(p => p.quantidade > 0).length);
-  set('dashProdutosPrateleira', state.prateleiras.reduce((a, s) => a + s.produtos.reduce((x, p) => x + p.quantidade, 0), 0));
-  set('dashProdutosCarga', state.carga.reduce((a, c) => a + c.quantidade, 0));
-  set('dashCaixasPapelao', (state.insumos?.caixaModeloA || 0) + (state.insumos?.caixaModeloB || 0));
-  set('dashEmbalagens', Object.values(state.insumos?.embalagens || {}).reduce((a, b) => a + (b || 0), 0) + (state.insumos?.embalagem40x50 || 0));
-  set('dashTotalUnidades', state.produtos.reduce((a, p) => a + (p.quantidade || 0), 0));
-  set('dashAlertas', state.produtos.filter(p => p.quantidade > 0 && p.quantidade <= state.limiteCritico).length);
-  set('dashInjetados', state.injetados.reduce((a, i) => a + i.quantidade, 0).toFixed(0));
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+
+  const produtos = Array.isArray(state.produtos) ? state.produtos : [];
+  const prateleiras = Array.isArray(state.prateleiras) ? state.prateleiras : [];
+  const carga = Array.isArray(state.carga) ? state.carga : [];
+  const insumos = state.insumos && typeof state.insumos === 'object'
+    ? state.insumos
+    : {};
+  const injetados = Array.isArray(state.injetados) ? state.injetados : [];
+
+  set('dashTotalProdutos', produtos.length);
+  set('dashProdutosBanco', produtos.filter(p => p.quantidade > 0).length);
+  set('dashProdutosPrateleira', prateleiras.reduce(
+    (total, s) => total + (Array.isArray(s.produtos)
+      ? s.produtos.reduce((subtotal, p) => subtotal + (p.quantidade || 0), 0)
+      : 0), 0
+  ));
+  set('dashProdutosCarga', carga.reduce(
+    (total, c) => total + (c.quantidade || 0), 0
+  ));
+  set('dashCaixasPapelao',
+    (insumos.caixaModeloA || 0) + (insumos.caixaModeloB || 0)
+  );
+  set('dashEmbalagens',
+    Object.values(insumos.embalagens || {}).reduce(
+      (total, valor) => total + (valor || 0), 0
+    ) + (insumos.embalagem40x50 || 0)
+  );
+  set('dashTotalUnidades', produtos.reduce(
+    (total, p) => total + (p.quantidade || 0), 0
+  ));
+  set('dashAlertas', produtos.filter(
+    p => p.quantidade > 0 && p.quantidade <= (state.limiteCritico || 0)
+  ).length);
+  set('dashInjetados', injetados.reduce(
+    (total, item) => total + (item.quantidade || 0), 0
+  ).toFixed(0));
 }
+
 
 // ===== GRÁFICO =====
 function atualizarGrafico() {
