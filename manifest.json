@@ -1,8 +1,8 @@
 {
   "name": "D.Sync - Gestão de Estoque",
   "short_name": "D.Sync",
-  "start_url": "https://mayarasilva190945.github.io/DSYNC1/",
-  "scope": "https://mayarasilva190945.github.io/DSYNC1/",
+  "start_url": "/DSYNC1/",
+  "scope": "/DSYNC1/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f6fb",
