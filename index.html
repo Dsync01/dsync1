@@ -14,11 +14,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
-    <script src="/DSYNC/supabase.js"></script>
+    <script src="/DSYNC1/supabase.js"></script>
 
-    <link rel="stylesheet" href="/DSYNC/style.css" />
-    <link rel="manifest" href="/DSYNC/manifest.json" />
-    <link rel="apple-touch-icon" href="/DSYNC/logoDS.png" />
+    <link rel="stylesheet" href="/DSYNC1/style.css" />
+    <link rel="manifest" href="/DSYNC1/manifest.json" />
+    <link rel="apple-touch-icon" href="/DSYNC1/logoDS.png" />
 </head>
 
 <body>
@@ -568,7 +568,7 @@
                             <button class="primary" onclick="abrirModalInsumos()">
                                 ✏️ Editar Insumos
                             </button>
-                            <button class="info" onclick="ApertarBotaoAtualizar()">
+                            <button class="info" onclick="mostrarSubAba('insumos')">
                                 🔄 Atualizar
                             </button>
                         </div>
@@ -1158,40 +1158,53 @@
             </div>
         </div>
 
+       
+<div class="modal" id="modalUsuario">
+    <div class="modal-content">
+        <h2 id="modalUsuarioTitle">👤 Adicionar Usuário</h2>
 
-        <div class="modal" id="modalUsuario">
-            <div class="modal-content">
-                <h2 id="modalUsuarioTitle">👤 Adicionar Usuário</h2>
+        <div id="modalUsuarioBody">
+            <label>Nome do Usuário *</label>
+            <input
+                type="text"
+                id="editUsuarioNome"
+                placeholder="Digite o nome do usuário"
+                autocomplete="name"
+            />
 
-                <div id="modalUsuarioBody">
-                    <label>Nome do Usuário *</label>
-                    <input type="text" id="editUsuarioNome" placeholder="Digite o nome do usuário"
-                        autocomplete="name" />
+            <label>E-mail *</label>
+            <input
+                type="email"
+                id="editUsuarioEmail"
+                placeholder="usuario@exemplo.com"
+                autocomplete="email"
+            />
 
-                    <label>E-mail *</label>
-                    <input type="email" id="editUsuarioEmail" placeholder="usuario@exemplo.com" autocomplete="email" />
+            <label>Senha *</label>
+            <input
+                type="password"
+                id="editUsuarioSenha"
+                placeholder="Mínimo de 6 caracteres"
+                autocomplete="new-password"
+            />
 
-                    <label>Senha *</label>
-                    <input type="password" id="editUsuarioSenha" placeholder="Mínimo de 6 caracteres"
-                        autocomplete="new-password" />
-
-                    <label>Tipo de Usuário</label>
-                    <select id="editUsuarioTipo">
-                        <option value="usuario">👤 Usuário</option>
-                        <option value="admin">👑 Administrador</option>
-                    </select>
-                </div>
-
-                <div class="modal-actions">
-                    <button class="btn-cancel" onclick="closeModalUsuario()">
-                        Cancelar
-                    </button>
-                    <button class="btn-save" onclick="salvarUsuario()">
-                        Salvar
-                    </button>
-                </div>
-            </div>
+            <label>Tipo de Usuário</label>
+            <select id="editUsuarioTipo">
+                <option value="usuario">👤 Usuário</option>
+                <option value="admin">👑 Administrador</option>
+            </select>
         </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModalUsuario()">
+                Cancelar
+            </button>
+            <button class="btn-save" onclick="salvarUsuario()">
+                Salvar
+            </button>
+        </div>
+    </div>
+</div>
 
         <div class="modal" id="modalCarga">
             <div class="modal-content">
@@ -1597,7 +1610,7 @@
         <div class="toast" id="toast"></div>
     </div>
 
-    <script src="/DSYNC/script.js"></script>
+    <script src="/DSYNC1/script.js"></script>
 </body>
 
 </html>
