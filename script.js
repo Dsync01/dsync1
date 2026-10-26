@@ -1146,6 +1146,17 @@ function closeModalInsumos() { document.getElementById('modalInsumos').style.dis
 function renderizarInsumos() {
   const container = document.getElementById('insumosContainer');
   if (!container) return;
+
+    // Garantir que os dados existam antes de renderizar
+  state.produtos = Array.isArray(state.produtos) ? state.produtos : [];
+  state.produtoInsumoMap = state.produtoInsumoMap || {};
+  state.insumos = state.insumos || {};
+  state.insumos.embalagens = state.insumos.embalagens || {};
+  state.insumos.caixaModeloA = state.insumos.caixaModeloA ?? 0;
+  state.insumos.caixaModeloB = state.insumos.caixaModeloB ?? 0;
+  state.insumos.embalagem40x50 = state.insumos.embalagem40x50 ?? 0;
+  state.configInsumos = state.configInsumos || {};
+  
   let linhasProdutos = '';
   state.produtos.forEach(p => {
     const config = state.produtoInsumoMap[p.id] || { modeloCaixa: 'A', embalagemPorCaixa: 25, tipoEmbalagem: 'individual' };
