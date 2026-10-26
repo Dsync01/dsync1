@@ -599,6 +599,7 @@ async function criarConta() {
 
 
 // Salvar dados na nuvem
+
 async function salvarNaNuvem() {
   if (!window.supabase || !usuarioSupabase) {
     mostrarToast('❌ Faça login para salvar na nuvem!', 'error');
@@ -623,18 +624,24 @@ async function salvarNaNuvem() {
   };
 
   const { error } = await window.supabase
-    .from('backups')
-    .insert({ user_id: usuarioSupabase.id, data: dados });
+    .from('dsync_compartilhado')
+    .update({
+      data: dados,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', 1);
 
   if (error) {
-    console.error('❌ Erro ao salvar na nuvem:', error);
+    console.error('Erro ao salvar dados compartilhados:', error);
     mostrarToast('❌ Erro ao salvar na nuvem!', 'error');
-  } else {
-    console.log('☁️ Backup na nuvem realizado!');
-    mostrarToast('☁️ Backup na nuvem realizado!', 'success');
-    const el = document.getElementById('ultimoBackupNuvem');
-    if (el) el.textContent = new Date().toLocaleString('pt-BR');
+    return;
   }
+
+  console.log('☁️ Dados compartilhados salvos!');
+  mostrarToast('☁️ Dados compartilhados salvos!', 'success');
+
+  const el = document.getElementById('ultimoBackupNuvem');
+  if (el) el.textContent = new Date().toLocaleString('pt-BR');
 }
 
 
@@ -681,45 +688,51 @@ function agendarSalvamentoNuvem() {
 
 
 // Carregar dados da nuvem
+
 async function carregarDaNuvem() {
   if (!window.supabase || !usuarioSupabase) return;
 
-  const { data, error } = await window.supabase
-    .from('backups')
+  const { data: registro, error } = await window.supabase
+    .from('dsync_compartilhado')
     .select('data')
-    .eq('user_id', usuarioSupabase.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+    .eq('id', 1)
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('❌ Erro ao carregar:', error);
+  if (error) {
+    console.error('Erro ao carregar dados compartilhados:', error);
+    mostrarToast('❌ Erro ao carregar dados da nuvem!', 'error');
     return;
   }
 
-  if (data && data.data) {
-    console.log('☁️ Dados carregados da nuvem!');
-    state.produtos = data.data.produtos || [];
-    state.prateleiras = data.data.prateleiras || [];
-    state.carga = data.data.carga || [];
-    state.historico = data.data.historico || [];
-    state.insumos = data.data.insumos || state.insumos;
-    state.configInsumos = data.data.configInsumos || state.configInsumos;
-    state.produtoInsumoMap = data.data.produtoInsumoMap || {};
-    state.pedidosSeparar = data.data.pedidosSeparar || [];
-    state.pedidosFinalizados = data.data.pedidosFinalizados || [];
-    state.injecao = data.data.injecao || [];
-    state.injetando = data.data.injetando || [];
-    state.injetados = data.data.injetados || [];
-    state.materiaPrima = data.data.materiaPrima || state.materiaPrima;
-    state.pedidoCargaAtual = data.data.pedidoCargaAtual || { ativo: false, codigo: '', itens: {} };
-
-    atualizarTudo();
-    mostrarToast('☁️ Dados sincronizados da nuvem!', 'success');
-  } else {
-    console.log('Nenhum backup na nuvem ainda. Começando vazio.');
+  if (!registro || !registro.data) {
+    console.log('Nenhum dado compartilhado encontrado.');
+    return;
   }
+
+  const dados = registro.data;
+
+  state.produtos = dados.produtos || [];
+  state.prateleiras = dados.prateleiras || [];
+  state.carga = dados.carga || [];
+  state.historico = dados.historico || [];
+  state.insumos = dados.insumos || [];
+  state.configInsumos = dados.configInsumos || {};
+  state.produtoInsumoMap = dados.produtoInsumoMap || {};
+  state.pedidosSeparar = dados.pedidosSeparar || [];
+  state.pedidosFinalizados = dados.pedidosFinalizados || [];
+  state.injecao = dados.injecao || [];
+  state.injetando = dados.injetando || [];
+  state.injetados = dados.injetados || [];
+  state.materiaPrima = dados.materiaPrima || [];
+  state.pedidoCargaAtual = dados.pedidoCargaAtual || null;
+
+  if (typeof atualizarTudo === 'function') {
+    atualizarTudo();
+  }
+
+  console.log('☁️ Dados compartilhados carregados!');
 }
+
 
 // ===== ENTRAR NO APP =====
 function entrarApp() {
