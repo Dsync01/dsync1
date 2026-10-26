@@ -2580,44 +2580,134 @@ function exportarHistoricoExcel() {
 }
 
 // ===== USUÁRIOS =====
-function carregarUsuarios() {
+
+async function carregarUsuarios() {
   const lista = document.getElementById('listaUsuarios');
   if (!lista) return;
-  lista.innerHTML = '';
-  state.usuarios.forEach(u => {
-    lista.innerHTML += `<div style="padding:8px;border-bottom:1px solid var(--border);color:var(--text);"><strong>${u.nome}</strong> - ${u.tipo === 'admin' ? '👑 Admin' : '👤 Usuário'} ${u.id !== 'admin' ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️</button>` : ''}</div>`;
-  });
+
+  lista.innerHTML = '<div style="padding:12px">Carregando usuários...</div>';
+
+  const { data, error } = await window.supabase.functions.invoke(
+    'gerenciar-usuarios',
+    { body: { action: 'listar' } }
+  );
+
+  if (error || !data?.usuarios) {
+    lista.innerHTML = '<div style="padding:12px">Erro ao carregar usuários. Verifique sua permissão de administrador.</div>';
+    console.error('Erro ao listar usuários:', error, data);
+    return;
+  }
+
+  lista.innerHTML = data.usuarios.map(u => `
+    <div style="padding:8px;border-bottom:1px solid var(--border);color:var(--text)">
+      <strong>${escapeHTML(u.nome || u.email || '')}</strong>
+      <div>${escapeHTML(u.email || '')}</div>
+      <span>${u.tipo === 'admin' ? '👑 Administrador' : '👤 Usuário'}</span>
+      ${u.id !== window.supabase.auth.getSession?.()?.user?.id && u.tipo !== 'admin'
+      ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️ Remover</button>`
+      : ''}
+    </div>
+  `).join('');
 }
+
+function escapeHTML(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+}
+
+function abrirModalUsuario() {
+  document.getElementById('editUsuarioNome').value = '';
+  document.getElementById('editUsuarioEmail').value = '';
+  document.getElementById('editUsuarioSenha').value = '';
+  document.getElementById('editUsuarioTipo').value = 'usuario';
+  document.getElementById('modalUsuario').style.display = 'flex';
+}
+
+async function salvarUsuario() {
+  const nome = document.getElementById('editUsuarioNome').value.trim();
+  const email = document.getElementById('editUsuarioEmail').value.trim();
+  const senha = document.getElementById('editUsuarioSenha').value;
+  const tipo = document.getElementById('editUsuarioTipo').value;
+
+  if (!nome || !email || !senha) {
+    mostrarToast('Preencha nome, e-mail e senha.', 'error');
+    return;
+  }
+
+  if (senha.length < 6) {
+    mostrarToast('A senha precisa ter pelo menos 6 caracteres.', 'error');
+    return;
+  }
+
+  const btn = document.querySelector('#modalUsuario .btn-save');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+  }
+
+  try {
+    const { data, error } = await window.supabase.functions.invoke(
+      'gerenciar-usuarios',
+      {
+        body: {
+          action: 'criar',
+          nome,
+          email,
+          senha,
+          tipo
+        }
+      }
+    );
+
+    if (error || data?.error) {
+      console.error('Erro ao criar usuário:', error, data);
+      mostrarToast(data?.error || error?.message || 'Não foi possível criar o usuário.', 'error');
+      return;
+    }
+
+    closeModalUsuario();
+    await carregarUsuarios();
+    mostrarToast('Usuário criado com sucesso!', 'success');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('Erro de comunicação com o Supabase.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Salvar';
+    }
+  }
+}
+
+async function removerUsuario(id) {
+  if (!confirm('Tem certeza de que deseja excluir esta conta do Supabase?')) return;
+
+  const { data, error } = await window.supabase.functions.invoke(
+    'gerenciar-usuarios',
+    { body: { action: 'remover', id } }
+  );
+
+  if (error || data?.error) {
+    console.error('Erro ao remover usuário:', error, data);
+    mostrarToast(data?.error || error?.message || 'Não foi possível remover o usuário.', 'error');
+    return;
+  }
+
+  await carregarUsuarios();
+  mostrarToast('Usuário removido com sucesso!', 'success');
+}
+
 
 function carregarLogAcesso() {
   const c = document.getElementById('logAcessosContainer');
   if (!c) return;
   const log = getData(STORAGE_KEYS.logAcessos, []);
   c.innerHTML = log.length === 0 ? '<div style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum acesso</div>' : log.slice(0, 50).map(l => `<div style="padding:6px;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${l.usuario} - ${l.acao} - ${l.data}</div>`).join('');
-}
-
-function abrirModalUsuario() { document.getElementById('modalUsuario').style.display = 'flex'; }
-
-function salvarUsuario() {
-  const nome = document.getElementById('editUsuarioNome').value.trim();
-  const senha = document.getElementById('editUsuarioSenha').value;
-  const tipo = document.getElementById('editUsuarioTipo').value;
-  if (!nome || !senha) { mostrarToast('❌ Preencha!', 'error'); return; }
-  if (state.usuarios.some(u => u.nome === nome)) { mostrarToast('❌ Usuário já existe!', 'error'); return; }
-  salvarEstadoParaUndo();
-  state.usuarios.push({ id: Date.now().toString(), nome, senha, tipo });
-  setData(STORAGE_KEYS.usuarios, state.usuarios);
-  document.getElementById('modalUsuario').style.display = 'none';
-  carregarUsuarios();
-  mostrarToast('✅ Adicionado!', 'success');
-}
-
-function removerUsuario(id) {
-  if (!confirm('Remover?')) return;
-  salvarEstadoParaUndo();
-  state.usuarios = state.usuarios.filter(u => u.id !== id);
-  setData(STORAGE_KEYS.usuarios, state.usuarios);
-  carregarUsuarios();
 }
 
 function limparLogAcesso() { setData(STORAGE_KEYS.logAcessos, []); carregarLogAcesso(); }
