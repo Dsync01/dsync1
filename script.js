@@ -4780,7 +4780,7 @@ document.addEventListener('DOMContentLoaded', function () {
           await navigator.serviceWorker.getRegistrations();
 
         for (const registration of registrations) {
-          if (registration.scope.includes('/DSYNC1/')) {
+          if (registration.scope.includes('/DSYNC/')) {
             await registration.unregister();
           }
         }
