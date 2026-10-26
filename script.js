@@ -350,13 +350,8 @@ document.addEventListener('DOMContentLoaded', function () {
           session.user.user_metadata?.full_name ||
           session.user.email;
 
-        state.usuarioAtual = {
-          id: session.user.id,
-          nome: nomeUsuario,
-          tipo: session.user.email?.toLowerCase() === emailAdmin
-            ? 'admin'
-            : 'usuario'
-        };
+        usuarioSupabase = session.user;
+        await carregarTipoUsuario();
 
         console.log('✅ Sessão restaurada:', session.user.email);
 
@@ -425,6 +420,41 @@ function carregarDados() {
 }
 
 // ===== SUPABASE: LOGIN, CADASTRO E BACKUP =====
+
+
+async function carregarTipoUsuario() {
+  const { data, error } = await window.supabase.functions.invoke(
+    'gerenciar-usuarios',
+    { body: { action: 'meu_tipo' } }
+  );
+
+  if (error || data?.error ||
+    !['admin', 'usuario'].includes(data?.tipo)) {
+    throw new Error(
+      data?.error || error?.message || 'Não foi possível verificar o acesso.'
+    );
+  }
+
+  state.usuarioAtual = {
+    id: usuarioSupabase.id,
+    nome: usuarioSupabase.email,
+    tipo: data.tipo
+  };
+}
+
+async function registrarLogAcesso(evento) {
+  if (!window.supabase || !usuarioSupabase) return;
+
+  const { data, error } = await window.supabase.functions.invoke(
+    'gerenciar-usuarios',
+    { body: { action: 'registrar', evento } }
+  );
+
+  if (error || data?.error) {
+    console.error('Erro ao registrar acesso:', error, data);
+  }
+}
+
 
 async function fazerLoginSupabase() {
   const email = document.getElementById('loginUsuario').value.trim();
@@ -712,18 +742,27 @@ function entrarApp() {
   }
 }
 
-function fazerLogout() {
-  if (window.supabase) {
-    window.supabase.auth.signOut().then(() => {
-      console.log('Logout do Supabase realizado');
-    });
+
+async function fazerLogout() {
+  try {
+    await registrarLogAcesso('logout');
+
+    if (window.supabase) {
+      const { error } = await window.supabase.auth.signOut();
+      if (error) console.error('Erro no logout:', error);
+    }
+  } catch (err) {
+    console.error('Erro ao registrar logout:', err);
   }
+
   usuarioSupabase = null;
   localStorage.removeItem(STORAGE_KEYS.sessao);
   state.usuarioAtual = null;
+
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('appContent').style.display = 'none';
 }
+
 
 function mostrarCriarConta() { document.getElementById('loginForm').style.display = 'none'; document.getElementById('criarContaForm').style.display = 'block'; document.getElementById('mensagemLogin').style.display = 'none'; }
 function mostrarLogin() { document.getElementById('loginForm').style.display = 'block'; document.getElementById('criarContaForm').style.display = 'none'; document.getElementById('mensagemLogin').style.display = 'none'; }
@@ -2610,8 +2649,8 @@ async function carregarUsuarios() {
         <div>${escapeHTML(u.email || '')}</div>
         <span>${u.tipo === 'admin' ? '👑 Administrador' : '👤 Usuário'}</span>
         ${u.id !== meuId && u.tipo !== 'admin'
-          ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️ Remover</button>`
-          : ''}
+        ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️ Remover</button>`
+        : ''}
       </div>
     `).join('');
   } catch (err) {
@@ -2726,14 +2765,69 @@ async function removerUsuario(id) {
 }
 
 
-function carregarLogAcesso() {
+
+async function carregarLogAcesso() {
   const c = document.getElementById('logAcessosContainer');
   if (!c) return;
-  const log = getData(STORAGE_KEYS.logAcessos, []);
-  c.innerHTML = log.length === 0 ? '<div style="text-align:center;padding:20px;color:var(--text-muted);">Nenhum acesso</div>' : log.slice(0, 50).map(l => `<div style="padding:6px;border-bottom:1px solid var(--border);color:var(--text);font-size:13px;">${l.usuario} - ${l.acao} - ${l.data}</div>`).join('');
+
+  c.innerHTML = '<div style="padding:12px">Carregando log...</div>';
+
+  try {
+    const { data, error } = await window.supabase.functions.invoke(
+      'gerenciar-usuarios',
+      { body: { action: 'listar_logs' } }
+    );
+
+    if (error || data?.error) {
+      console.error('Erro ao carregar log:', error, data);
+      c.innerHTML = '<div style="padding:12px">Erro ao carregar o log.</div>';
+      return;
+    }
+
+    const logs = data?.logs || [];
+
+    if (!logs.length) {
+      c.innerHTML = '<div style="text-align:center;padding:20px">Nenhum acesso registrado.</div>';
+      return;
+    }
+
+    c.innerHTML = logs.map(log => `
+      <div style="padding:8px;border-bottom:1px solid var(--border);color:var(--text);font-size:13px">
+        <strong>${escapeHTML(log.email || 'Usuário')}</strong>
+        — ${log.evento === 'login' ? 'Entrou' : 'Saiu'}
+        <br>
+        <small>${new Date(log.data).toLocaleString('pt-BR')}</small>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Falha ao carregar log:', err);
+    c.innerHTML = '<div style="padding:12px">Falha de comunicação com o Supabase.</div>';
+  }
 }
 
-function limparLogAcesso() { setData(STORAGE_KEYS.logAcessos, []); carregarLogAcesso(); }
+async function limparLogAcesso() {
+  if (!confirm('Tem certeza de que deseja apagar todo o log de acessos?')) return;
+
+  try {
+    const { data, error } = await window.supabase.functions.invoke(
+      'gerenciar-usuarios',
+      { body: { action: 'limpar_logs' } }
+    );
+
+    if (error || data?.error) {
+      console.error('Erro ao limpar log:', error, data);
+      mostrarToast(data?.error || error?.message || 'Não foi possível limpar o log.', 'error');
+      return;
+    }
+
+    await carregarLogAcesso();
+    mostrarToast('Log limpo com sucesso!', 'success');
+  } catch (err) {
+    console.error(err);
+    mostrarToast('Erro de comunicação com o Supabase.', 'error');
+  }
+}
+
 function closeModalUsuario() { document.getElementById('modalUsuario').style.display = 'none'; }
 
 // ===== EXPORTAR / IMPORTAR =====
