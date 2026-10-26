@@ -2581,34 +2581,57 @@ function exportarHistoricoExcel() {
 
 // ===== USUÁRIOS =====
 
+
 async function carregarUsuarios() {
   const lista = document.getElementById('listaUsuarios');
   if (!lista) return;
 
   lista.innerHTML = '<div style="padding:12px">Carregando usuários...</div>';
 
-  const { data, error } = await window.supabase.functions.invoke(
-    'gerenciar-usuarios',
-    { body: { action: 'listar' } }
-  );
+  try {
+    const { data, error } = await window.supabase.functions.invoke(
+      'gerenciar-usuarios',
+      { body: { action: 'listar' } }
+    );
 
-  if (error || !data?.usuarios) {
-    lista.innerHTML = '<div style="padding:12px">Erro ao carregar usuários. Verifique sua permissão de administrador.</div>';
-    console.error('Erro ao listar usuários:', error, data);
-    return;
+    if (error || !Array.isArray(data?.usuarios)) {
+      console.error('Erro ao carregar usuários:', error, data);
+      lista.innerHTML =
+        '<div style="padding:12px">Erro ao carregar usuários. Verifique o Console.</div>';
+      return;
+    }
+
+    const { data: sessionData } = await window.supabase.auth.getSession();
+    const meuId = sessionData.session?.user?.id;
+
+    lista.innerHTML = data.usuarios.map(u => `
+      <div style="padding:8px;border-bottom:1px solid var(--border);color:var(--text)">
+        <strong>${escapeHTML(u.nome || u.email || '')}</strong>
+        <div>${escapeHTML(u.email || '')}</div>
+        <span>${u.tipo === 'admin' ? '👑 Administrador' : '👤 Usuário'}</span>
+        ${u.id !== meuId && u.tipo !== 'admin'
+          ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️ Remover</button>`
+          : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Falha ao carregar usuários:', err);
+    lista.innerHTML =
+      '<div style="padding:12px">Falha de comunicação com o Supabase.</div>';
   }
-
-  lista.innerHTML = data.usuarios.map(u => `
-    <div style="padding:8px;border-bottom:1px solid var(--border);color:var(--text)">
-      <strong>${escapeHTML(u.nome || u.email || '')}</strong>
-      <div>${escapeHTML(u.email || '')}</div>
-      <span>${u.tipo === 'admin' ? '👑 Administrador' : '👤 Usuário'}</span>
-      ${u.id !== window.supabase.auth.getSession?.()?.user?.id && u.tipo !== 'admin'
-      ? `<button class="btn btn-xs btn-danger" onclick="removerUsuario('${u.id}')">🗑️ Remover</button>`
-      : ''}
-    </div>
-  `).join('');
 }
+
+
+function escapeHTML(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[c]);
+}
+
 
 function escapeHTML(valor) {
   return String(valor ?? '').replace(/[&<>"']/g, c => ({
