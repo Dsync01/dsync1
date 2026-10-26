@@ -456,6 +456,7 @@ async function registrarLogAcesso(evento) {
 }
 
 
+
 async function fazerLoginSupabase() {
   const email = document.getElementById('loginUsuario').value.trim();
   const senha = document.getElementById('loginSenha').value;
@@ -473,30 +474,29 @@ async function fazerLoginSupabase() {
     return;
   }
 
-  const btn = document.querySelector('button[onclick="fazerLoginSupabase()"]');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Entrando...'; }
+  const btn = document.querySelector(
+    'button[onclick="fazerLoginSupabase()"]'
+  );
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Entrando...';
+  }
+
   msg.style.display = 'none';
 
   try {
     const { data, error } = await window.supabase.auth.signInWithPassword({
-      email: email,
-      password: senha,
+      email,
+      password: senha
     });
 
-    if (error) {
-      msg.textContent = '❌ ' + error.message;
-      msg.style.display = 'block';
-      if (btn) { btn.disabled = false; btn.textContent = '🔓 Entrar'; }
-      return;
-    }
+    if (error) throw error;
 
     usuarioSupabase = data.user;
 
     await carregarTipoUsuario();
     await registrarLogAcesso('login');
-
-    await carregarDaNuvem();
-    entrarApp();
 
     const nomeUsuario =
       data.user.user_metadata?.nome ||
@@ -512,7 +512,6 @@ async function fazerLoginSupabase() {
         : 'usuario'
     };
 
-    // Carrega os dados da nuvem antes de entrar
     await carregarDaNuvem();
 
     entrarApp();
@@ -521,9 +520,14 @@ async function fazerLoginSupabase() {
     console.error('Erro no login:', err);
     msg.textContent = '❌ ' + (err.message || 'Erro de conexão.');
     msg.style.display = 'block';
-    if (btn) { btn.disabled = false; btn.textContent = '🔓 Entrar'; }
+
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔓 Entrar';
+    }
   }
 }
+
 
 
 async function criarConta() {
@@ -648,10 +652,11 @@ async function salvarNaNuvem() {
 let temporizadorSalvamento = null;
 let salvamentoEmAndamento = false;
 let salvamentoPendente = false;
+let dadosCompartilhadosCarregados = false;
 
 
 function agendarSalvamentoNuvem() {
-  if (!usuarioSupabase) return;
+  if (!usuarioSupabase || !dadosCompartilhadosCarregados) return;
 
   clearTimeout(temporizadorSalvamento);
 
@@ -666,6 +671,9 @@ function agendarSalvamentoNuvem() {
     try {
       do {
         salvamentoPendente = false;
+
+        if (!dadosCompartilhadosCarregados) break;
+
         await salvarNaNuvem();
       } while (salvamentoPendente);
     } catch (erro) {
@@ -677,7 +685,7 @@ function agendarSalvamentoNuvem() {
     } finally {
       salvamentoEmAndamento = false;
 
-      if (salvamentoPendente) {
+      if (salvamentoPendente && dadosCompartilhadosCarregados) {
         salvamentoPendente = false;
         agendarSalvamentoNuvem();
       }
@@ -691,7 +699,7 @@ function agendarSalvamentoNuvem() {
 
 async function carregarDaNuvem() {
   if (!window.supabase || !usuarioSupabase) return;
-
+  dadosCompartilhadosCarregados = false;
   const { data: registro, error } = await window.supabase
     .from('dsync_compartilhado')
     .select('data')
@@ -728,39 +736,44 @@ async function carregarDaNuvem() {
 
   if (typeof atualizarTudo === 'function') {
     atualizarTudo();
-  }
 
-  console.log('☁️ Dados compartilhados carregados!');
+  }
+  dadosCompartilhadosCarregados = true;
+  console.log('✅ Dados compartilhados prontos para sincronização.');
 }
 
 
 // ===== ENTRAR NO APP =====
-function entrarApp() {
+
+async function entrarApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appContent').style.display = 'block';
-  document.getElementById('perfilUsuario').textContent = '👤 ' + (state.usuarioAtual?.nome || 'Usuário');
-  document.getElementById('perfilNivel').textContent = state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';
-  document.getElementById('tabUsuarios').style.display = state.usuarioAtual?.tipo === 'admin' ? 'inline-block' : 'none';
 
-  document.body.classList.remove('tab-dashboard', 'tab-estoque', 'tab-pedidos', 'tab-injecao', 'tab-usuarios');
+  document.getElementById('perfilUsuario').textContent =
+    '👤 ' + (state.usuarioAtual?.nome || 'Usuário');
+
+  document.getElementById('perfilNivel').textContent =
+    state.usuarioAtual?.tipo === 'admin' ? '👑 Admin' : '👤 Usuário';
+
+  document.getElementById('tabUsuarios').style.display =
+    state.usuarioAtual?.tipo === 'admin' ? 'inline-block' : 'none';
+
+  document.body.classList.remove(
+    'tab-dashboard', 'tab-estoque', 'tab-pedidos',
+    'tab-injecao', 'tab-usuarios'
+  );
   document.body.classList.add('tab-dashboard');
 
   carregarTema();
   carregarPedidoCarga();
+
   inicializarApp();
+
+  // Inicia apenas o backup local automático.
   iniciarBackupAutomatico();
   iniciarTimerProducao();
-
-
-  /* Configura o backup automático na nuvem */
-  if (window.supabase) {
-    setInterval(async () => {
-      if (usuarioSupabase) {
-        await salvarNaNuvem();
-      }
-    }, 300000); // a cada 5 minutos
-  }
 }
+
 
 
 async function fazerLogout() {
