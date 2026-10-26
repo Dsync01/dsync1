@@ -492,6 +492,12 @@ async function fazerLoginSupabase() {
 
     usuarioSupabase = data.user;
 
+    await carregarTipoUsuario();
+    await registrarLogAcesso('login');
+
+    await carregarDaNuvem();
+    entrarApp();
+
     const nomeUsuario =
       data.user.user_metadata?.nome ||
       data.user.user_metadata?.display_name ||
