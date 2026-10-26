@@ -2543,8 +2543,8 @@ function atualizarDashboard() {
   set('dashProdutosBanco', state.produtos.filter(p => p.quantidade > 0).length);
   set('dashProdutosPrateleira', state.prateleiras.reduce((a, s) => a + s.produtos.reduce((x, p) => x + p.quantidade, 0), 0));
   set('dashProdutosCarga', state.carga.reduce((a, c) => a + c.quantidade, 0));
-  set('dashCaixasPapelao', state.insumos.caixaModeloA + state.insumos.caixaModeloB);
-  set('dashEmbalagens', Object.values(state.insumos.embalagens).reduce((a, b) => a + (b || 0), 0) + (state.insumos.embalagem40x50 || 0));
+  set('dashCaixasPapelao', (state.insumos?.caixaModeloA || 0) + (state.insumos?.caixaModeloB || 0));
+  set('dashEmbalagens', Object.values(state.insumos?.embalagens || {}).reduce((a, b) => a + (b || 0), 0) + (state.insumos?.embalagem40x50 || 0));
   set('dashTotalUnidades', state.produtos.reduce((a, p) => a + (p.quantidade || 0), 0));
   set('dashAlertas', state.produtos.filter(p => p.quantidade > 0 && p.quantidade <= state.limiteCritico).length);
   set('dashInjetados', state.injetados.reduce((a, i) => a + i.quantidade, 0).toFixed(0));
