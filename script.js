@@ -476,7 +476,9 @@ async function fazerLoginSupabase() {
     state.usuarioAtual = {
       id: data.user.id,
       nome: nomeUsuario,
-      tipo: 'admin'
+      tipo: data.user.email?.toLowerCase() === 'admin@admin.com'
+        ? 'admin'
+        : 'usuario'
     };
 
     // Carrega os dados da nuvem antes de entrar
