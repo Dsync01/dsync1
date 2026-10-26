@@ -4493,12 +4493,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/DSYNC1/sw.js', { scope: '/DSYNC1/' })
-      .then(() => console.log('✅ Service Worker registrado com escopo correto'))
-      .catch(err => console.error('Erro no SW:', err));
+    window.addEventListener('load', async () => {
+      try {
+        const registrations =
+          await navigator.serviceWorker.getRegistrations();
+
+        for (const registration of registrations) {
+          if (registration.scope.includes('/DSYNC1/')) {
+            await registration.unregister();
+          }
+        }
+
+        const registration =
+          await navigator.serviceWorker.register(
+            './sw.js',
+            { scope: './' }
+          );
+
+        console.log('Service Worker registrado:', registration.scope);
+      } catch (error) {
+        console.error('Erro no Service Worker:', error);
+      }
+    });
   }
+
 
   const inputManualPrat = document.getElementById('scannerPrateleiraInput');
   if (inputManualPrat) {
