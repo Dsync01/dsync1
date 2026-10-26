@@ -1156,7 +1156,7 @@ function renderizarInsumos() {
   state.insumos.caixaModeloB = state.insumos.caixaModeloB ?? 0;
   state.insumos.embalagem40x50 = state.insumos.embalagem40x50 ?? 0;
   state.configInsumos = state.configInsumos || {};
-  
+
   let linhasProdutos = '';
   state.produtos.forEach(p => {
     const config = state.produtoInsumoMap[p.id] || { modeloCaixa: 'A', embalagemPorCaixa: 25, tipoEmbalagem: 'individual' };
@@ -1175,6 +1175,8 @@ function renderizarInsumos() {
         <td class="${baixo ? 'valor-baixo' : 'valor-ok'}">${q}</td>
         <td style="color:var(--text-muted);font-size:11px;">${alerta}</td>
       </tr>`;
+
+  console.log('CLIQUEI NO BOTAO ATUALIZAR INSUMOS');
   });
 
   const alertaA = state.insumos.caixaModeloA <= state.configInsumos.alertaCaixaModeloA;
