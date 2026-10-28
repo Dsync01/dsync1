@@ -1,7 +1,7 @@
-const CACHE_NAME = 'dsync-v5';
+const CACHE_NAME = 'dsync-v6';
 
 // Caminho base da sua aplicação no GitHub Pages
-const BASE_PATH = '/DSYNC/';
+const BASE_PATH = '/dsync1/';
 
 const ASSETS = [
   BASE_PATH,
