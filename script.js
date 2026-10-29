@@ -343,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (session) {
         usuarioSupabase = session.user;
 
-        const emailAdmin = 'admin@admin.com';
+        /*const emailAdmin = 'admin@admin.com';*/
         const nomeUsuario =
           session.user.user_metadata?.nome ||
           session.user.user_metadata?.display_name ||
