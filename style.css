@@ -2783,3 +2783,28 @@ body.dark-mode .scanner-produto-info.erro {
     color: var(--primary);
 }
 
+@media (max-width: 768px) {
+    .tabela-carga {
+        width: 100%;
+        table-layout: fixed;
+        font-size: 10px;
+    }
+
+    .tabela-carga th,
+    .tabela-carga td {
+        padding: 5px 3px;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    .tabela-carga button {
+        padding: 4px;
+        font-size: 10px;
+    }
+
+    #pedidoCargaContainer {
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+    }
+}
