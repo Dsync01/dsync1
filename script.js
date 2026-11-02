@@ -20,8 +20,8 @@ const state = {
   pedidoSeparacaoAtual: { codigo: null, itens: {} },
   pedidosSeparar: [],
   pedidosFinalizados: [],
-  limiteBaixo: 5,
-  limiteCritico: 2,
+  limiteBaixo: 40,
+  limiteCritico: 0,
   html5QrCode: null,
   currentPosicaoEdit: null,
   undoStack: [],
@@ -90,6 +90,8 @@ function setData(key, value) {
 
 
 function saveData() {
+  if (!dadosCompartilhadosCarregados) return;
+
   setData(STORAGE_KEYS.produtos, state.produtos);
   setData(STORAGE_KEYS.prateleiras, state.prateleiras);
   setData(STORAGE_KEYS.carga, state.carga);
@@ -217,7 +219,96 @@ function migrarProdutosParaInjecao() {
 }
 
 // ===== PEDIDO DE CARGA PERSISTENTE =====
-function salvarPedidoCarga() { setData(STORAGE_KEYS.pedidoCarga, state.pedidoCargaAtual); }
+function salvarPedidoCarga() {
+  localStorage.setItem(
+    STORAGE_KEYS.pedidoCarga,
+    JSON.stringify(state.pedidoCargaAtual)
+  );
+
+  if (dadosCompartilhadosCarregados && usuarioSupabase) {
+    salvarPedidoCargaNaNuvem();
+  }
+}
+
+async function salvarPedidoCargaNaNuvem() {
+  if (!window.supabase || !usuarioSupabase) {
+    console.error('Usuário não autenticado.');
+    return false;
+  }
+
+  const pedido = JSON.parse(
+    JSON.stringify(state.pedidoCargaAtual || {
+      ativo: false,
+      codigo: '',
+      itens: {}
+    })
+  );
+
+  try {
+    const { data, error } = await window.supabase
+      .from('dsync_pedido_carga')
+      .update({
+        data: pedido,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', 1)
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      throw new Error('Registro do pedido não encontrado.');
+    }
+
+    console.log('☁️ Pedido de carga salvo:', pedido.codigo);
+    return true;
+
+  } catch (erro) {
+    console.error('Erro ao salvar pedido de carga:', erro);
+    mostrarToast('❌ Erro ao salvar pedido na nuvem!', 'error');
+    return false;
+  }
+}
+async function carregarPedidoCargaDaNuvem() {
+  if (!window.supabase || !usuarioSupabase) {
+    console.error('Usuário não autenticado.');
+    return false;
+  }
+
+  try {
+    const { data, error } = await window.supabase
+      .from('dsync_pedido_carga')
+      .select('data')
+      .eq('id', 1)
+      .single();
+
+    if (error) throw error;
+
+    state.pedidoCargaAtual = data.data || {
+      ativo: false,
+      codigo: '',
+      itens: {}
+    };
+
+    localStorage.setItem(
+      STORAGE_KEYS.pedidoCarga,
+      JSON.stringify(state.pedidoCargaAtual)
+    );
+
+    console.log(
+      '☁️ Pedido de carga carregado:',
+      state.pedidoCargaAtual.codigo
+    );
+
+    return true;
+
+  } catch (erro) {
+    console.error('Erro ao carregar pedido de carga:', erro);
+    mostrarToast('❌ Erro ao carregar pedido da nuvem!', 'error');
+    return false;
+  }
+}
 
 function carregarPedidoCarga() {
   const salvo = getData(STORAGE_KEYS.pedidoCarga, null);
@@ -326,13 +417,17 @@ document.addEventListener('keydown', function (e) {
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded', function () {
   console.log('🚀 Inicializando D.Sync...');
+
+  // Oculta as telas enquanto verifica a sessão
+document.getElementById('loginScreen').style.display = 'none';
+document.getElementById('appContent').style.display = 'none';
+
   carregarDados();
   carregarInsumos();
   carregarPedidoCarga();
 
-
-  // Tenta recuperar sessão do Supabase
-  if (window.supabase) {
+  // Recupera sessão do Supabase
+  if (window.supabase?.auth) {
     window.supabase.auth.getSession().then(async ({ data, error }) => {
       if (error) {
         console.error('Erro ao recuperar sessão:', error);
@@ -343,20 +438,15 @@ document.addEventListener('DOMContentLoaded', function () {
       if (session) {
         usuarioSupabase = session.user;
 
-        /*const emailAdmin = 'admin@admin.com';*/
-        const nomeUsuario =
-          session.user.user_metadata?.nome ||
-          session.user.user_metadata?.display_name ||
-          session.user.user_metadata?.full_name ||
-          session.user.email;
-
-        usuarioSupabase = session.user;
         await carregarTipoUsuario();
 
         console.log('✅ Sessão restaurada:', session.user.email);
 
         await carregarDaNuvem();
+        await carregarPedidoCargaDaNuvem();
+
         entrarApp();
+
       } else {
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('appContent').style.display = 'none';
@@ -364,11 +454,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch((erro) => {
       console.error('Erro ao verificar sessão:', erro);
     });
+
   } else {
     console.error('Supabase ainda não foi carregado.');
   }
 });
-
 
 function carregarDados() {
   state.produtos = getData(STORAGE_KEYS.produtos, []);
@@ -376,8 +466,8 @@ function carregarDados() {
   state.carga = getData(STORAGE_KEYS.carga, []);
   state.historico = getData(STORAGE_KEYS.historico, []);
   state.usuarios = getData(STORAGE_KEYS.usuarios, []);
-  state.limiteBaixo = getData(STORAGE_KEYS.limiteBaixo, 5);
-  state.limiteCritico = getData(STORAGE_KEYS.limiteCritico, 2);
+  state.limiteBaixo = getData(STORAGE_KEYS.limiteBaixo, 40);
+  state.limiteCritico = getData(STORAGE_KEYS.limiteCritico, 0);
   state.pedidosSeparar = getData(STORAGE_KEYS.pedidosSeparar, []);
   state.pedidosFinalizados = getData(STORAGE_KEYS.pedidosFinalizados, []);
   state.injecao = getData(STORAGE_KEYS.injecao, []);
@@ -435,9 +525,15 @@ async function carregarTipoUsuario() {
     );
   }
 
+  const nomeUsuario =
+    usuarioSupabase.user_metadata?.nome ||
+    usuarioSupabase.user_metadata?.display_name ||
+    usuarioSupabase.user_metadata?.full_name ||
+    usuarioSupabase.email;
+
   state.usuarioAtual = {
     id: usuarioSupabase.id,
-    nome: usuarioSupabase.email,
+    nome: nomeUsuario,
     tipo: data.tipo
   };
 }
@@ -456,7 +552,6 @@ async function registrarLogAcesso(evento) {
 }
 
 
-
 async function fazerLoginSupabase() {
   const email = document.getElementById('loginUsuario').value.trim();
   const senha = document.getElementById('loginSenha').value;
@@ -468,7 +563,7 @@ async function fazerLoginSupabase() {
     return;
   }
 
-  if (!window.supabase || !window.supabase.auth) {
+  if (!window.supabase?.auth) {
     msg.textContent = '❌ Supabase não carregou. Aguarde e tente novamente.';
     msg.style.display = 'block';
     return;
@@ -498,21 +593,8 @@ async function fazerLoginSupabase() {
     await carregarTipoUsuario();
     await registrarLogAcesso('login');
 
-    const nomeUsuario =
-      data.user.user_metadata?.nome ||
-      data.user.user_metadata?.display_name ||
-      data.user.user_metadata?.full_name ||
-      data.user.email;
-
-    state.usuarioAtual = {
-      id: data.user.id,
-      nome: nomeUsuario,
-      tipo: data.user.email?.toLowerCase() === 'admin@admin.com'
-        ? 'admin'
-        : 'usuario'
-    };
-
     await carregarDaNuvem();
+    await carregarPedidoCargaDaNuvem();
 
     entrarApp();
 
@@ -527,7 +609,6 @@ async function fazerLoginSupabase() {
     }
   }
 }
-
 
 
 async function criarConta() {
@@ -611,43 +692,70 @@ async function salvarNaNuvem() {
   }
 
   const dados = {
-    produtos: state.produtos,
-    prateleiras: state.prateleiras,
-    carga: state.carga,
-    historico: state.historico,
-    insumos: state.insumos,
-    configInsumos: state.configInsumos,
-    produtoInsumoMap: state.produtoInsumoMap,
-    pedidosSeparar: state.pedidosSeparar,
-    pedidosFinalizados: state.pedidosFinalizados,
-    injecao: state.injecao,
-    injetando: state.injetando,
-    injetados: state.injetados,
-    materiaPrima: state.materiaPrima,
-    pedidoCargaAtual: state.pedidoCargaAtual
+    produtos: state.produtos || [],
+    prateleiras: state.prateleiras || [],
+    carga: state.carga || [],
+    historico: state.historico || [],
+    insumos: state.insumos || {
+      embalagens: {},
+      caixaModeloA: 0,
+      caixaModeloB: 0,
+      embalagem40x50: 0
+    },
+    configInsumos: state.configInsumos || {},
+    produtoInsumoMap: state.produtoInsumoMap || {},
+    pedidosSeparar: state.pedidosSeparar || [],
+    pedidosFinalizados: state.pedidosFinalizados || [],
+    injecao: state.injecao || [],
+    injetando: state.injetando || [],
+    injetados: state.injetados || [],
+    materiaPrima: state.materiaPrima || {
+      tipos: [],
+      estoque: {}
+    }
+
+
   };
 
-  const { error } = await window.supabase
-    .from('dsync_compartilhado')
-    .update({
-      data: dados,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', 1);
+  try {
+    const { data: registroAtualizado, error } = await window.supabase
+      .from('dsync_compartilhado')
+      .update({
+        data: dados,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', 1)
+      .select('id')
+      .maybeSingle();
 
-  if (error) {
-    console.error('Erro ao salvar dados compartilhados:', error);
-    mostrarToast('❌ Erro ao salvar na nuvem!', 'error');
-    return;
+    if (error) {
+      console.error('Erro ao salvar dados compartilhados:', error);
+      mostrarToast('❌ Erro ao salvar na nuvem!', 'error');
+      return;
+    }
+
+    if (!registroAtualizado) {
+      console.error('Nenhum registro encontrado com id = 1.');
+      mostrarToast('❌ Registro compartilhado não encontrado!', 'error');
+      return;
+    }
+
+    console.log('☁️ Dados compartilhados salvos com sucesso!');
+    console.log('📦 Pedido de carga salvo:', dados.pedidoCargaAtual);
+
+    mostrarToast('☁️ Dados compartilhados salvos!', 'success');
+
+    const el = document.getElementById('ultimoBackupNuvem');
+
+    if (el) {
+      el.textContent = new Date().toLocaleString('pt-BR');
+    }
+
+  } catch (erro) {
+    console.error('Erro inesperado ao salvar na nuvem:', erro);
+    mostrarToast('❌ Falha inesperada ao salvar na nuvem!', 'error');
   }
-
-  console.log('☁️ Dados compartilhados salvos!');
-  mostrarToast('☁️ Dados compartilhados salvos!', 'success');
-
-  const el = document.getElementById('ultimoBackupNuvem');
-  if (el) el.textContent = new Date().toLocaleString('pt-BR');
 }
-
 
 let temporizadorSalvamento = null;
 let salvamentoEmAndamento = false;
@@ -730,7 +838,7 @@ async function carregarDaNuvem() {
     caixaModeloB: 0,
     embalagem40x50: 0
   };
-  
+
   state.configInsumos = dados.configInsumos || {};
   state.produtoInsumoMap = dados.produtoInsumoMap || {};
   state.pedidosSeparar = dados.pedidosSeparar || [];
@@ -772,7 +880,6 @@ async function entrarApp() {
   document.body.classList.add('tab-dashboard');
 
   carregarTema();
-  carregarPedidoCarga();
 
   inicializarApp();
 
@@ -929,7 +1036,10 @@ function inicializarApp() {
   verificarEstoque();
   renderizarInsumos();
   verificarAlertasInsumos();
-  mostrarToast('✅ Bem-vindo, ' + (state.usuarioAtual?.nomeUsuario || 'Usuário') + '!', 'success');
+  mostrarToast(
+    '✅ Bem-vindo, ' + (state.usuarioAtual?.nome || 'Usuário') + '!',
+    'success'
+  );
 }
 
 // ===== INSUMOS =====
@@ -1311,17 +1421,12 @@ function renderPrateleira(shelf) {
         <div>
           <h2 class="shelf-title">📦 ${shelf.nome} <span class="shelf-title-code">(${codigoPrateleira})</span></h2>
         </div>
-        <div class="shelf-qr-wrapper">
-          <div id="${qrId}" class="shelf-qr"></div>
-          <div class="shelf-qr-label">${codigoPrateleira}</div>
-        </div>
       </div>
       <div class="shelf-actions">
         <button class="btn btn-sm btn-green" onclick="adicionarPosicaoPrateleira('${shelf.id}')">➕ Posição</button>
         <button class="btn btn-sm btn-orange" onclick="removerPosicaoPrateleira('${shelf.id}')">➖ Posição</button>
         <button class="btn btn-sm btn-yellow" onclick="editarCorPrateleira('${shelf.id}')">🎨</button>
         <button class="btn btn-sm btn-info" onclick="editarNomePrateleira('${shelf.id}')">✏️</button>
-        <button class="btn btn-sm btn-info" onclick="imprimirQRCodePrateleira('${shelf.id}')">🖨️ QR</button>
         <button class="btn btn-sm btn-danger" onclick="removerPrateleira('${shelf.id}')">🗑️</button>
       </div>
     </div>
@@ -2280,45 +2385,189 @@ function finalizarCarga() {
   mostrarToast('🚛 Carga finalizada!', 'success');
 }
 
+
+
 function carregarCarga() {
-  const c = document.getElementById('cargaContainer');
-  if (!c) return;
-  let html = `
-    <div class="controls">
-      <button class="warning" onclick="finalizarCarga()">🚛 Finalizar Carga</button>
-      <button class="danger" onclick="zerarCarga()">🗑️ Limpar Reservas</button>
-      <button class="info" onclick="exportarCargaPDF()">📄 Exportar PDF</button>
-    </div>`;
-  if (state.carga.length === 0) {
-    html += '<div style="text-align:center;padding:40px;color:var(--text-muted);">🚛 Nenhuma reserva.</div>';
+  console.log('[CARGA] Iniciando carregarCarga()');
+
+  try {
+    const c = document.getElementById('cargaContainer');
+
+    if (!c) {
+      console.error('[CARGA] ERRO: elemento cargaContainer não encontrado.');
+      return;
+    }
+
+    console.log('[CARGA] Container encontrado:', c);
+
+    console.log('[CARGA] Estado:', {
+      stateExiste: typeof state !== 'undefined',
+      cargaArray: Array.isArray(state?.carga),
+      totalReservas: state?.carga?.length,
+      totalProdutos: state?.produtos?.length
+    });
+
+    let html = `
+      <div class="controls">
+        <button class="warning" onclick="finalizarCarga()">🚛 Finalizar Carga</button>
+        <button class="danger" onclick="zerarCarga()">🗑️ Limpar Reservas</button>
+        <button class="info" onclick="exportarCargaPDF()">📄 Exportar PDF</button>
+      </div>`;
+
+    let total = 0;
+    let quantidadeRenderizada = 0;
+
+    if (!Array.isArray(state.carga)) {
+      console.error('[CARGA] ERRO: state.carga não é um array.');
+      return;
+    }
+
+    state.carga.forEach(item => {
+      const produto = state.produtos.find(p => p.id === item.id);
+
+      if (!produto) {
+        console.warn('[CARGA] Produto não encontrado:', item);
+        return;
+      }
+
+      total += Number(item.quantidade) || 0;
+      quantidadeRenderizada++;
+
+      const prateleira = state.prateleiras.find(
+        s => s.id === item.prateleira
+      );
+
+      const nome = prateleira?.nome || '?';
+
+      const loc = item.prateleira && item.posicao
+        ? `📍 ${nome}${item.posicao}`
+        : '📍 Sem local';
+
+      const isCarga = item.pedidoCodigo === CARGA_PEDIDO_TAG;
+      const badgeStyle = isCarga
+        ? 'background:var(--accent);'
+        : 'background:var(--info);';
+
+      const ped = item.pedidoCodigo
+        ? ` <span style="${badgeStyle}color:white;font-size:10px;padding:2px 6px;border-radius:8px;">${isCarga ? '🚛 CARGA' : '📋 ' + item.pedidoCodigo}</span>`
+        : '';
+
+      html += `
+        <div class="carga-card"
+             onclick="abrirDetalhesDaCarga('${item.uid}')"
+             title="Clique para ver o pedido associado"
+             style="display:flex;justify-content:space-between;align-items:center;padding:10px;margin-bottom:8px;cursor:pointer;">
+          <div>
+            <strong>${produto.nome}</strong> - ${item.quantidade} cx${ped}
+            <div style="font-size:12px;color:var(--text-muted);">${loc}</div>
+            <small style="color:var(--info);">👆 Clique para ver o pedido</small>
+          </div>
+          <button class="btn btn-xs btn-danger"
+                  onclick="event.stopPropagation();removerDaCarga('${item.uid}')">
+            🗑️
+          </button>
+        </div>`;
+    });
+
     c.innerHTML = html;
-    document.getElementById('totalCargaProdutos').textContent = '0';
-    document.getElementById('totalCargaItens').textContent = '0';
+
+    const elProdutos = document.getElementById('totalCargaProdutos');
+    const elItens = document.getElementById('totalCargaItens');
+
+    if (elProdutos) {
+      elProdutos.textContent = state.carga.filter(item =>
+        state.produtos.some(p => p.id === item.id)
+      ).length;
+    }
+
+    if (elItens) {
+      elItens.textContent = total;
+    }
+
+    console.log('[CARGA] Renderização concluída:', {
+      reservasNoEstado: state.carga.length,
+      produtosRenderizados: quantidadeRenderizada,
+      totalItens: total,
+      htmlGerado: c.innerHTML.length,
+      containerVisivel: c.offsetParent !== null
+    });
+
+  } catch (erro) {
+    console.error('[CARGA] ERRO durante a execução:', erro);
+    console.error('[CARGA] Stack:', erro.stack);
+  }
+}
+
+function abrirDetalhesDaCarga(uid) {
+  const item = state.carga.find(c => c.uid === uid);
+
+  if (!item) {
+    mostrarToast('❌ Carga não encontrada!', 'error');
     return;
   }
-  let total = 0;
-  state.carga.forEach(item => {
-    const produto = state.produtos.find(p => p.id === item.id);
-    if (produto) {
-      total += item.quantidade;
-      const nome = state.prateleiras.find(s => s.id === item.prateleira)?.nome || '?';
-      const loc = item.prateleira && item.posicao ? `📍 ${nome}${item.posicao}` : '📍 Sem local';
-      const isCarga = item.pedidoCodigo === CARGA_PEDIDO_TAG;
-      const badgeStyle = isCarga ? 'background:var(--accent);' : 'background:var(--info);';
-      const ped = item.pedidoCodigo ? ` <span style="${badgeStyle}color:white;font-size:10px;padding:2px 6px;border-radius:8px;">${isCarga ? '🚛 CARGA' : '📋 ' + item.pedidoCodigo}</span>` : '';
-      html += `
-        <div class="carga-card" style="display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:8px;">
-          <div><strong>${produto.nome}</strong> - ${item.quantidade} cx${ped}
-            <div style="font-size:12px;color:var(--text-muted);">${loc}</div>
-          </div>
-          <button class="btn btn-xs btn-danger" onclick="removerDaCarga('${item.uid}')">🗑️</button>
-        </div>`;
+
+  // Carga vinculada ao pedido de carga atual
+  if (item.pedidoCodigo === CARGA_PEDIDO_TAG) {
+    if (!state.pedidoCargaAtual?.ativo) {
+      mostrarToast('❌ Não há pedido de carga ativo.', 'error');
+      return;
     }
-  });
-  c.innerHTML = html;
-  document.getElementById('totalCargaProdutos').textContent = state.carga.length;
-  document.getElementById('totalCargaItens').textContent = total;
+
+    switchTab('pedidos');
+    mostrarSubAba('carga');
+
+    setTimeout(() => {
+      const detalhes = document.getElementById('pedidoCargaContainer');
+      detalhes?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+
+    return;
+  }
+
+  // Carga vinculada a um pedido de separação
+  if (item.pedidoCodigo) {
+    const pedido = state.pedidosSeparar.find(
+      p => p.codigo === item.pedidoCodigo
+    );
+
+    if (pedido) {
+      editarPedido(pedido.codigo);
+      return;
+    }
+
+    const finalizado = state.pedidosFinalizados.find(
+      p => p.codigo === item.pedidoCodigo
+    );
+
+    if (finalizado) {
+      switchTab('pedidos');
+      mostrarSubAba('finalizado');
+
+      setTimeout(() => {
+        const lista = document.getElementById('listaPedidosFinalizados');
+        const cartoes = lista?.querySelectorAll('.pedido-card') || [];
+
+        for (const cartao of cartoes) {
+          if (cartao.textContent.includes(finalizado.codigo)) {
+            cartao.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+            break;
+          }
+        }
+      }, 150);
+
+      return;
+    }
+  }
+
+  mostrarToast(
+    'ℹ️ Esta reserva não está vinculada a um pedido.',
+    'info'
+  );
 }
+
 
 // ===== LEITOR DE PEDIDOS =====
 function extrairCodigoEQuantidade(valorBruto) {
@@ -2619,9 +2868,14 @@ function atualizarDashboard() {
   set('dashTotalUnidades', produtos.reduce(
     (total, p) => total + (p.quantidade || 0), 0
   ));
-  set('dashAlertas', produtos.filter(
-    p => p.quantidade > 0 && p.quantidade <= (state.limiteCritico || 0)
-  ).length);
+  const alertasProdutos = produtos.filter(
+    p => p.quantidade > 0 &&
+      p.quantidade <= (state.limiteBaixo || 5)
+  ).length;
+
+  const alertasInsumos = verificarAlertasInsumos().length;
+
+  set('dashAlertas', alertasProdutos + alertasInsumos);
   set('dashInjetados', injetados.reduce(
     (total, item) => total + (item.quantidade || 0), 0
   ).toFixed(0));
@@ -2670,20 +2924,75 @@ function atualizarGrafico() {
 // ===== ALERTAS =====
 function verificarEstoque() {
   const container = document.getElementById('alertasContainer');
-  const baixos = state.produtos.filter(p => p.quantidade > 0 && p.quantidade <= state.limiteBaixo);
-  const criticos = state.produtos.filter(p => p.quantidade > 0 && p.quantidade <= state.limiteCritico);
+
+  const criticos = state.produtos.filter(p =>
+    Number(p.quantidade ?? 0) <= state.limiteCritico
+  );
+
+  const baixos = state.produtos.filter(p => {
+    const q = Number(p.quantidade ?? 0);
+    return q > state.limiteCritico && q <= state.limiteBaixo;
+  });
+
+
   document.getElementById('totalBaixo').textContent = baixos.length;
   document.getElementById('totalCritico').textContent = criticos.length;
-  if (criticos.length === 0 && baixos.length === 0) {
-    container.innerHTML = '<p class="alert-box-success">✅ Estoque adequado!</p>';
-    document.getElementById('alertBanner').classList.remove('active');
-    return;
+
+  let html = '';
+
+  // PRODUTOS CRÍTICOS
+  criticos.forEach(p => {
+    html += `
+      <div class="alert-box alert-box-danger"
+        onclick="switchTab('estoque'); mostrarSubAba('prateleiras');"
+        style="cursor:pointer;">
+        <strong>${escapeHTML(p.nome)}</strong>
+        - ${p.quantidade} cx (CRÍTICO)
+        <span style="float:right;">Ver →</span>
+      </div>`;
+  });
+
+  // PRODUTOS COM ESTOQUE BAIXO
+  baixos.filter(p => p.quantidade > state.limiteCritico)
+    .forEach(p => {
+      html += `
+        <div class="alert-box alert-box-warning"
+          onclick="switchTab('estoque'); mostrarSubAba('prateleiras');"
+          style="cursor:pointer;">
+          <strong>${escapeHTML(p.nome)}</strong>
+          - ${p.quantidade} cx (BAIXO)
+          <span style="float:right;">Ver →</span>
+        </div>`;
+    });
+
+  // INSUMOS
+  const alertasInsumos = verificarAlertasInsumos();
+
+  alertasInsumos.forEach(alerta => {
+    html += `
+      <div class="alert-box alert-box-danger"
+        onclick="switchTab('estoque'); mostrarSubAba('insumos');"
+        style="cursor:pointer;">
+        <strong>${escapeHTML(alerta)}</strong>
+        <span style="float:right;">Ver →</span>
+      </div>`;
+  });
+
+  container.innerHTML = html || `
+    <p class="alert-box-success">
+      ✅ Estoque adequado! Nenhum alerta encontrado.
+    </p>
+  `;
+
+  // Banner de produtos no Dashboard
+  const banner = document.getElementById('alertBanner');
+
+  if (banner) {
+    banner.classList.toggle(
+      'active',
+      baixos.length > 0 || alertasInsumos.length > 0
+    );
   }
-  let h = '';
-  criticos.forEach(p => h += `<div class="alert-box alert-box-danger"><strong>${p.nome}</strong> - ${p.quantidade} cx (CRÍTICO)</div>`);
-  baixos.filter(p => p.quantidade > state.limiteCritico).forEach(p => h += `<div class="alert-box alert-box-warning"><strong>${p.nome}</strong> - ${p.quantidade} cx (BAIXO)</div>`);
-  container.innerHTML = h;
-  document.getElementById('alertBanner').classList.add('active');
 }
 
 function configurarAlertas() {
@@ -2693,13 +3002,26 @@ function configurarAlertas() {
 }
 
 function saveConfig() {
-  state.limiteBaixo = parseInt(document.getElementById('limiteBaixo').value) || 5;
-  state.limiteCritico = parseInt(document.getElementById('limiteCritico').value) || 2;
-  localStorage.setItem(STORAGE_KEYS.limiteBaixo, state.limiteBaixo);
-  localStorage.setItem(STORAGE_KEYS.limiteCritico, state.limiteCritico);
+  const baixo = Number(document.getElementById('limiteBaixo').value);
+  const critico = Number(document.getElementById('limiteCritico').value);
+
+  if (!Number.isFinite(baixo) || !Number.isFinite(critico)) {
+    mostrarToast('❌ Informe limites válidos!', 'error');
+    return;
+  }
+
+  state.limiteBaixo = baixo;
+  state.limiteCritico = critico;
+
+  localStorage.setItem(STORAGE_KEYS.limiteBaixo, baixo);
+  localStorage.setItem(STORAGE_KEYS.limiteCritico, critico);
+
   document.getElementById('modalConfig').style.display = 'none';
+
   verificarEstoque();
-  mostrarToast('✅ Salvo!', 'success');
+  atualizarDashboard();
+
+  mostrarToast('✅ Configurações salvas!', 'success');
 }
 
 function closeModalConfig() { document.getElementById('modalConfig').style.display = 'none'; }
@@ -3061,6 +3383,14 @@ function importarDados() {
   }
 }
 
+function abrirMenuDados() {
+    document.getElementById('modalMenuDados').style.display = 'flex';
+}
+
+function fecharMenuDados() {
+    document.getElementById('modalMenuDados').style.display = 'none';
+}
+
 function exportarExcel() {
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(state.produtos.map(p => ({ 'Produto': p.nome, 'Código': p.codigoInterno, 'Disponível': p.quantidade })));
@@ -3210,7 +3540,7 @@ function mostrarSubAba(subAba) {
   else if (subAba === 'pedidonovo') atualizarPedidoNovo();
   else if (subAba === 'separar') atualizarListasPedidos();
   else if (subAba === 'finalizado') atualizarListasPedidos();
-  else if (subAba === 'carga') { carregarPedidoCarga(); montarPedidoCarga(); }
+  else if (subAba === 'carga') { montarPedidoCarga(); atualizarPedidoCarga(); }
   else if (subAba === 'injecao') renderizarInjecao();
   else if (subAba === 'injetar') renderizarInjetar();
   else if (subAba === 'injetando') renderizarInjetando();
@@ -3580,250 +3910,1030 @@ function verificarAlertasInjecao() {
   console.log(`🔔 ${produtosSemMaquina.length} produto(s) aguardando injeção`);
 }
 
+
 // ============================================================
 // PEDIDOS DE SEPARAÇÃO
 // ============================================================
 let pedidoAtualEmEdicao = null;
 
+// Cria um novo pedido
 function novoPedido() {
   const codigo = document.getElementById('codigoPedidoInput').value.trim();
-  if (!codigo) { mostrarToast('❌ Digite um código!', 'error'); return; }
-  if (state.pedidosSeparar.some(p => p.codigo === codigo)) {
-    mostrarToast('❌ Já existe um pedido com esse código!', 'error'); return;
+
+  if (!codigo) {
+    mostrarToast('❌ Digite um código!', 'error');
+    return;
   }
-  const novo = { codigo, itens: {}, dataCriacao: new Date().toLocaleString(), status: 'separar' };
+
+  if (state.pedidosSeparar.some(p => p.codigo === codigo) ||
+    state.pedidosFinalizados.some(p => p.codigo === codigo)) {
+    mostrarToast('❌ Já existe um pedido com esse código!', 'error');
+    return;
+  }
+
+  const novo = {
+    codigo,
+    itens: {},
+    dataCriacao: new Date().toLocaleString(),
+    status: 'separar'
+  };
+
   state.pedidosSeparar.push(novo);
-  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
   pedidoAtualEmEdicao = novo;
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
   document.getElementById('codigoPedidoInput').value = '';
+
   atualizarPedidoNovo();
   atualizarListasPedidos();
+
   mostrarToast(`✅ Pedido ${codigo} criado!`, 'success');
 }
 
+// Adiciona produto ao pedido
+
 function adicionarItemPedidoSeparacao() {
-  if (!pedidoAtualEmEdicao) { mostrarToast('❌ Crie um pedido primeiro!', 'error'); return; }
-  const pid = document.getElementById('pedidoNovoProdutoSelect').value;
-  const q = parseInt(document.getElementById('pedidoNovoQuantidadeInput').value);
-  if (!pid || !q || q <= 0) { mostrarToast('❌ Dados inválidos!', 'error'); return; }
-  const produto = state.produtos.find(p => p.id === pid);
-  if (!produto) return;
-  salvarEstadoParaUndo();
-  const disp = buscarDisponibilidadeProduto(pid);
-  let resto = q;
-  const reservas = [];
-  disp.locais.forEach(l => {
-    if (resto <= 0) return;
-    const qr = Math.min(resto, l.disponivel);
-    if (qr > 0) { reservas.push({ prateleiraId: l.prateleiraId, posicao: l.posicao, quantidade: qr }); resto -= qr; }
-  });
-  reservas.forEach(r => {
-    state.carga.push({
-      uid: 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      id: pid, quantidade: r.quantidade, prateleira: r.prateleiraId, posicao: r.posicao,
-      pedidoCodigo: pedidoAtualEmEdicao.codigo
-    });
-  });
-  if (!pedidoAtualEmEdicao.itens[pid]) {
-    pedidoAtualEmEdicao.itens[pid] = { produtoId: pid, nome: produto.nome, codigoInterno: produto.codigoInterno || '', pacotes: 0, caixas: 0 };
+  if (!pedidoAtualEmEdicao) {
+    mostrarToast('❌ Crie um pedido primeiro!', 'error');
+    return;
   }
-  pedidoAtualEmEdicao.itens[pid].pacotes += q;
-  pedidoAtualEmEdicao.itens[pid].caixas += q;
-  setData(STORAGE_KEYS.carga, state.carga);
-  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
-  atualizarPedidoNovo();
-  carregarPrateleiras();
-  carregarCarga();
-  atualizarDashboard();
-  if (resto > 0) mostrarToast(`⚠️ Faltam ${resto} cx de ${produto.nome}!`, 'warning');
-  else mostrarToast(`✅ ${q} caixas adicionadas`, 'success');
-}
 
-function removerItemPedidoSeparacao(produtoId) {
-  if (!pedidoAtualEmEdicao) return;
-  const item = pedidoAtualEmEdicao.itens[produtoId];
-  if (!item) return;
+  const valorProduto = document.getElementById('pedidoNovoProdutoSelect').value;
+  const qtdPacotes = parseInt(
+    document.getElementById('pedidoNovoQuantidadeInput').value
+  );
+
+  const produto = obterProdutoSelecionadoPedido(valorProduto);
+
+  if (!produto) {
+    mostrarToast('❌ Selecione ou digite um produto válido!', 'error');
+    return;
+  }
+
+  if (!qtdPacotes || qtdPacotes <= 0) {
+    mostrarToast('❌ Informe uma quantidade válida de pacotes!', 'error');
+    return;
+  }
+
+  const pid = produto.id;
+  const pacotesPorVolume = parseInt(produto.pacotesPorVolume) || 50;
+
   salvarEstadoParaUndo();
-  state.carga = state.carga.filter(c => !(c.id === produtoId && c.pedidoCodigo === pedidoAtualEmEdicao.codigo));
-  delete pedidoAtualEmEdicao.itens[produtoId];
-  setData(STORAGE_KEYS.carga, state.carga);
-  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
-  atualizarPedidoNovo();
-  carregarPrateleiras();
-  carregarCarga();
-  atualizarDashboard();
-  mostrarToast('🗑️ Removido!', 'warning');
-}
 
-function _finalizarPedido(pedido) {
-  Object.values(pedido.itens).forEach(item => {
-    const pid = item.produtoId;
-    const reservas = state.carga.filter(c => c.id === pid && c.pedidoCodigo === pedido.codigo);
-    reservas.forEach(r => {
-      const s = state.prateleiras.find(x => x.id === r.prateleira);
-      if (s) {
-        const idx = s.produtos.findIndex(p => p.id === pid && p.posicao === r.posicao);
-        if (idx !== -1) {
-          s.produtos[idx].quantidade -= r.quantidade;
-          if (s.produtos[idx].quantidade <= 0) s.produtos.splice(idx, 1);
-        }
-      }
-      const produto = state.produtos.find(p => p.id === pid);
-      if (produto) produto.quantidade = Math.max(0, (produto.quantidade || 0) - r.quantidade);
-    });
-    state.carga = state.carga.filter(c => !(c.id === pid && c.pedidoCodigo === pedido.codigo));
-  });
-  state.pedidosSeparar = state.pedidosSeparar.filter(p => p.codigo !== pedido.codigo);
-  pedido.status = 'finalizado';
-  pedido.dataFinalizacao = new Date().toLocaleString();
-  state.pedidosFinalizados.push(pedido);
-  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
-  setData(STORAGE_KEYS.pedidosFinalizados, state.pedidosFinalizados);
-  setData(STORAGE_KEYS.prateleiras, state.prateleiras);
-  setData(STORAGE_KEYS.carga, state.carga);
-  setData(STORAGE_KEYS.produtos, state.produtos);
-  registrarHistorico(`Pedido ${pedido.codigo}`, 'Pedido Finalizado', 0, `Itens: ${Object.values(pedido.itens).map(i => `${i.nome}: ${i.pacotes} cx`).join(', ')}`);
-}
+  if (!pedidoAtualEmEdicao.itens[pid]) {
+    pedidoAtualEmEdicao.itens[pid] = {
+      produtoId: pid,
+      nome: produto.nome,
+      codigoInterno: produto.codigoInterno || '',
+      pacotesPorVolume,
+      pacotes: 0,
+      caixas: 0,
+      modalidade: '',
+      retiradas: []
+    };
+  }
 
-function finalizarPedidoSeparacao() {
-  if (!pedidoAtualEmEdicao) { mostrarToast('❌ Nenhum pedido em edição!', 'error'); return; }
-  if (Object.keys(pedidoAtualEmEdicao.itens).length === 0) { mostrarToast('❌ Pedido vazio!', 'error'); return; }
-  if (!confirm(`Finalizar pedido ${pedidoAtualEmEdicao.codigo}?`)) return;
-  salvarEstadoParaUndo();
-  _finalizarPedido(pedidoAtualEmEdicao);
-  pedidoAtualEmEdicao = null;
+  const item = pedidoAtualEmEdicao.itens[pid];
+
+  item.pacotes += qtdPacotes;
+  item.caixas = Math.floor(item.pacotes / pacotesPorVolume);
+
+  // Se a quantidade mudar, exige nova conferência da modalidade.
+  item.modalidade = '';
+  item.retiradas = [];
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
+  document.getElementById('pedidoNovoProdutoSelect').value = '';
+  document.getElementById('pedidoNovoQuantidadeInput').value = '';
+
   atualizarPedidoNovo();
   atualizarListasPedidos();
-  carregarPrateleiras();
-  carregarCarga();
-  atualizarDashboard();
-  mostrarToast('✅ Finalizado!', 'success');
+
+  mostrarToast(`✅ ${qtdPacotes} pacotes adicionados!`, 'success');
 }
+
+
+// Calcula o consumo de insumos para produção
+function calcularConsumoProducaoPedido(produtoId, quantidadePacotes) {
+  const produto = state.produtos.find(p => p.id === produtoId);
+
+  if (!produto) return null;
+
+  const pacotesPorVolume = parseInt(produto.pacotesPorVolume) || 50;
+
+  const config = state.produtoInsumoMap[produtoId] || {
+    modeloCaixa: 'A',
+    embalagemPorCaixa: pacotesPorVolume,
+    tipoEmbalagem: 'individual'
+  };
+
+  const embalagemPorCaixa =
+    parseFloat(config.embalagemPorCaixa) || pacotesPorVolume;
+
+  // Caixas sempre arredondadas para cima.
+  const caixas = Math.ceil(quantidadePacotes / pacotesPorVolume);
+
+  // Embalagens calculadas proporcionalmente aos pacotes produzidos.
+  const embalagens = Math.ceil(
+    quantidadePacotes * embalagemPorCaixa / pacotesPorVolume
+  );
+
+  return {
+    caixas,
+    embalagens,
+    modeloCaixa: config.modeloCaixa || 'A',
+    usa40x50: usaEmbalagem40x50(produto),
+    pacotesProduzidos: quantidadePacotes
+  };
+}
+
+// Define se o produto será retirado ou produzido
+
+function definirModalidadePedido(produtoId, modalidade) {
+  if (!pedidoAtualEmEdicao) return;
+
+  const item = pedidoAtualEmEdicao.itens[produtoId];
+  if (!item) return;
+
+  if (!['retirar', 'produzir'].includes(modalidade)) return;
+
+  salvarEstadoParaUndo();
+
+  // Apenas troca a modalidade.
+  // Não altera estoque nem apaga as quantidades já selecionadas.
+  item.modalidade = modalidade;
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
+  atualizarPedidoNovo();
+}
+
+function obterProdutoSelecionadoPedido(valor) {
+  const texto = valor.trim();
+
+  if (!texto) return null;
+
+  // Procura pelo nome acompanhado do código ou ID.
+  let produto = state.produtos.find(p =>
+    texto === `${p.nome} (${p.codigoInterno || p.id})`
+  );
+
+  if (produto) return produto;
+
+  // Também permite digitar o nome ou código diretamente.
+  const encontrados = state.produtos.filter(p =>
+    p.nome.toLowerCase() === texto.toLowerCase() ||
+    (p.codigoInterno &&
+      p.codigoInterno.toLowerCase() === texto.toLowerCase())
+  );
+
+  return encontrados.length === 1 ? encontrados[0] : null;
+}
+
+// Atualiza a quantidade selecionada em cada posição
+function atualizarQuantidadeRetirada(produtoId, prateleiraId, posicao, valor) {
+  if (!pedidoAtualEmEdicao) return;
+
+  const item = pedidoAtualEmEdicao.itens[produtoId];
+
+  if (!item) return;
+
+  if (!item.retiradas) item.retiradas = [];
+
+  let retirada = item.retiradas.find(r =>
+    r.prateleiraId === prateleiraId &&
+    String(r.posicao) === String(posicao)
+  );
+
+  const quantidade = Math.max(0, parseInt(valor) || 0);
+
+  if (!retirada && quantidade > 0) {
+    item.retiradas.push({
+      prateleiraId,
+      posicao,
+      quantidade
+    });
+  } else if (retirada) {
+    retirada.quantidade = quantidade;
+
+    if (quantidade === 0) {
+      item.retiradas = item.retiradas.filter(r => r !== retirada);
+    }
+  }
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
+  atualizarPedidoNovo();
+}
+
+// Remove item do pedido
+function removerItemPedidoSeparacao(produtoId) {
+  if (!pedidoAtualEmEdicao) return;
+
+  if (!pedidoAtualEmEdicao.itens[produtoId]) return;
+
+  salvarEstadoParaUndo();
+
+  delete pedidoAtualEmEdicao.itens[produtoId];
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
+  atualizarPedidoNovo();
+  atualizarListasPedidos();
+
+  mostrarToast('🗑️ Item removido!', 'warning');
+}
+
+// Renderiza os cards na criação do pedido
 
 function atualizarPedidoNovo() {
   const c = document.getElementById('pedidoNovoItens');
+
   if (!c) return;
-  if (!pedidoAtualEmEdicao) { c.innerHTML = '<p style="color:var(--text-muted);">Inicie um pedido para adicionar itens.</p>'; return; }
-  const itens = pedidoAtualEmEdicao.itens;
-  const itensHtml = Object.values(itens).map(item => {
-    const res = state.carga.filter(c => c.id === item.produtoId && c.pedidoCodigo === pedidoAtualEmEdicao.codigo).reduce((a, c) => a + c.quantidade, 0);
-    const falta = Math.max(0, item.pacotes - res);
-    const locais = state.carga.filter(c => c.id === item.produtoId && c.pedidoCodigo === pedidoAtualEmEdicao.codigo).map(c => `${c.prateleira}${c.posicao}`).join(', ');
-    return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid var(--border);color:var(--text);">
-      <span><strong>${item.nome}</strong> (${item.codigoInterno || 'sem código'})<br>
-      <small style="color:var(--text-muted);">Pedido: ${item.pacotes} cx | Reservado: ${res} (${locais || 'nenhum'}) | Produzir: ${falta}</small></span>
-      <button class="btn btn-xs btn-danger" onclick="removerItemPedidoSeparacao('${item.produtoId}')">🗑️</button>
-    </div>`;
+
+  if (!pedidoAtualEmEdicao) {
+    c.innerHTML =
+      '<p style="color:var(--text-muted);">Inicie um pedido para adicionar itens.</p>';
+    return;
+  }
+
+  const itens = Object.values(pedidoAtualEmEdicao.itens || {});
+
+  let totalPacotes = 0;
+  let totalCaixas = 0;
+
+  const itensHtml = itens.map(item => {
+    const pacotesPorVolume = item.pacotesPorVolume || 50;
+    const caixas = Math.ceil(item.pacotes / pacotesPorVolume);
+    const sobra = item.pacotes % pacotesPorVolume;
+
+    const disp = buscarDisponibilidadeProduto(item.produtoId);
+    const retiradas = item.retiradas || [];
+
+    const totalRetirada = retiradas.reduce(
+      (a, r) => a + r.quantidade, 0
+    );
+
+    totalPacotes += item.pacotes;
+    totalCaixas += caixas;
+
+    const locaisHtml = disp.locais.map(l => {
+      const selecionado = retiradas.find(r =>
+        r.prateleiraId === l.prateleiraId &&
+        String(r.posicao) === String(l.posicao)
+      );
+
+      const quantidade = selecionado ? selecionado.quantidade : 0;
+
+      return `
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:10px;
+          padding:8px;
+          border-bottom:1px solid var(--border);
+        ">
+          <div>
+            <strong>${l.prateleiraNome || l.prateleiraId} - Posição ${l.posicao}</strong>
+            <br>
+            <small style="color:var(--text-muted);">
+              Disponível: ${l.disponivel} caixas
+            </small>
+          </div>
+
+          <input
+            type="number"
+            min="0"
+            max="${l.disponivel}"
+            value="${quantidade}"
+            style="width:85px;"
+            onchange="atualizarQuantidadeRetirada(
+              '${item.produtoId}',
+              '${l.prateleiraId}',
+              '${l.posicao}',
+              this.value
+            )"
+          >
+        </div>
+      `;
+    }).join('');
+
+    let detalhesHtml = '';
+
+    if (item.modalidade === 'retirar') {
+      detalhesHtml = `
+        <div style="
+          margin-top:12px;
+          padding:12px;
+          background:var(--bg-subtle);
+          border-radius:8px;
+        ">
+          <strong>📦 Retirada da prateleira</strong>
+
+          ${locaisHtml || '<p>Não há estoque disponível.</p>'}
+
+          <div style="margin-top:10px;font-weight:700;">
+            Selecionadas: ${totalRetirada} / ${caixas} caixas
+          </div>
+
+          <div style="color:${totalRetirada === caixas ? 'var(--success)' : 'var(--danger)'};">
+            ${totalRetirada === caixas
+          ? '✅ Quantidade completa'
+          : `Faltam ${Math.max(0, caixas - totalRetirada)} caixas`}
+          </div>
+        </div>
+      `;
+    }
+
+    if (item.modalidade === 'produzir') {
+      const consumo = calcularConsumoProducaoPedido(
+        item.produtoId,
+        item.pacotes
+      );
+
+      detalhesHtml = `
+        <div style="
+          margin-top:12px;
+          padding:12px;
+          background:var(--bg-subtle);
+          border-radius:8px;
+        ">
+          <strong>🏭 Produção do pedido</strong>
+
+          <p>Pacotes a produzir: <strong>${item.pacotes}</strong></p>
+          <p>Caixas a utilizar: <strong>${consumo.caixas}</strong></p>
+          <p>Embalagens: <strong>${consumo.embalagens}</strong></p>
+
+          <small style="color:var(--text-muted);">
+            Produção exata de ${item.pacotes} pacotes.
+            As caixas serão arredondadas para cima.
+          </small>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:15px;
+        margin-bottom:12px;
+        background:var(--bg);
+        color:var(--text);
+      ">
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <div>
+            <strong>${item.nome}</strong>
+            <br>
+            <small>${item.codigoInterno || 'Sem código'}</small>
+          </div>
+
+          <button
+            class="btn btn-xs btn-danger"
+            onclick="removerItemPedidoSeparacao('${item.produtoId}')"
+          >
+            🗑️
+          </button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <strong>${item.pacotes} pacotes</strong>
+          →
+          <strong>${caixas} caixas</strong>
+          ${sobra > 0 ? ` + ${sobra} pacotes` : ''}
+        </div>
+
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          margin-top:15px;
+        ">
+          <button
+            class="btn btn-md ${item.modalidade === 'retirar' ? 'btn-primary' : 'btn-info'}"
+            onclick="definirModalidadePedido('${item.produtoId}','retirar')"
+          >
+            📦 Retirar da prateleira
+            ${item.modalidade === 'retirar' ? '✓' : ''}
+          </button>
+
+          <button
+            class="btn btn-md ${item.modalidade === 'produzir' ? 'btn-primary' : 'btn-success'}"
+            onclick="definirModalidadePedido('${item.produtoId}','produzir')"
+          >
+            🏭 Produzir
+            ${item.modalidade === 'produzir' ? '✓' : ''}
+          </button>
+        </div>
+
+        ${detalhesHtml}
+      </div>
+    `;
   }).join('');
-  const totalCx = Object.values(itens).reduce((a, i) => a + i.pacotes, 0);
+
   c.innerHTML = `
-    <h4 style="color:var(--text);">Pedido: ${pedidoAtualEmEdicao.codigo}</h4>
-    <p style="color:var(--text);"><strong>Total:</strong> ${totalCx} caixas</p>
+    <h4 style="color:var(--text);">
+      Pedido: ${pedidoAtualEmEdicao.codigo}
+    </h4>
+
+    <div style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin:15px 0;
+      padding:15px;
+      background:var(--bg-subtle);
+      border-radius:8px;
+      border:1px solid var(--border);
+    ">
+      <div style="text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:var(--primary);">
+          ${totalPacotes}
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          TOTAL PACOTES
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:var(--accent);">
+          ${totalCaixas}
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          TOTAL CAIXAS
+        </div>
+      </div>
+    </div>
+
     ${itensHtml || '<p style="color:var(--text-muted);">Nenhum item.</p>'}
-    <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
-      <select id="pedidoNovoProdutoSelect" style="flex:2; min-width:200px;">
-        <option value="">Selecione...</option>
-        ${state.produtos.map(p => `<option value="${p.id}">${p.nome}</option>`).join('')}
-      </select>
-      <input type="number" id="pedidoNovoQuantidadeInput" placeholder="Qtd (cx)" min="1" style="flex:1; min-width:120px;">
-      <button class="btn btn-md btn-success" onclick="adicionarItemPedidoSeparacao()">➕ Adicionar</button>
-      <button class="btn btn-md btn-primary" onclick="finalizarPedidoSeparacao()">✅ Finalizar</button>
-    </div>`;
+
+    <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+      <input
+        type="text"
+        id="pedidoNovoProdutoSelect"
+        list="pedidoNovoProdutosLista"
+        placeholder="Digite ou selecione o produto..."
+        autocomplete="off"
+        style="flex:2;min-width:200px;"
+      >
+
+      <datalist id="pedidoNovoProdutosLista">
+        ${state.produtos.map(p => `
+          <option value="${p.nome} (${p.codigoInterno || p.id})"></option>
+        `).join('')}
+      </datalist>
+
+      <input
+        type="number"
+        id="pedidoNovoQuantidadeInput"
+        placeholder="Qtd (pacotes)"
+        min="1"
+        style="flex:1;min-width:120px;"
+      >
+
+      <button
+        class="btn btn-md btn-success"
+        onclick="adicionarItemPedidoSeparacao()"
+      >
+        ➕ Adicionar
+      </button>
+
+      <button
+        class="btn btn-md btn-primary"
+        onclick="finalizarPedidoSeparacao()"
+      >
+        ✅ Enviar para Separar
+      </button>
+    </div>
+  `;
 }
+
+
+// Confirma e efetua a baixa do pedido
+function _finalizarPedido(pedido) {
+  const itens = Object.values(pedido.itens || {});
+
+  if (itens.length === 0) {
+    mostrarToast('❌ Pedido sem itens!', 'error');
+    return false;
+  }
+
+  // PRIMEIRA ETAPA: validar todos os itens antes de qualquer baixa.
+  for (const item of itens) {
+    const caixas = Math.ceil(
+      item.pacotes / (item.pacotesPorVolume || 50)
+    );
+
+    if (item.modalidade === 'retirar') {
+      const retiradas = item.retiradas || [];
+
+      const total = retiradas.reduce(
+        (a, r) => a + (parseInt(r.quantidade) || 0), 0
+      );
+
+      if (total !== caixas) {
+        mostrarToast(
+          `❌ ${item.nome}: selecione exatamente ${caixas} caixas.`,
+          'error'
+        );
+        return false;
+      }
+
+      for (const r of retiradas) {
+        const disp = buscarDisponibilidadeProduto(item.produtoId);
+
+        const local = disp.locais.find(l =>
+          l.prateleiraId === r.prateleiraId &&
+          String(l.posicao) === String(r.posicao)
+        );
+
+        if (!local || r.quantidade <= 0 || r.quantidade > local.disponivel) {
+          mostrarToast(
+            `❌ Estoque insuficiente em ${r.prateleiraId}, posição ${r.posicao}.`,
+            'error'
+          );
+          return false;
+        }
+      }
+
+    } else if (item.modalidade === 'produzir') {
+      const consumo = calcularConsumoProducaoPedido(
+        item.produtoId,
+        item.pacotes
+      );
+
+      const disponivelCaixas =
+        consumo.modeloCaixa === 'B'
+          ? state.insumos.caixaModeloB
+          : state.insumos.caixaModeloA;
+
+      const disponivelEmbalagens =
+        consumo.usa40x50
+          ? state.insumos.embalagem40x50 || 0
+          : state.insumos.embalagens[item.produtoId] || 0;
+
+      if (disponivelCaixas < consumo.caixas) {
+        mostrarToast(
+          `❌ ${item.nome}: faltam caixas Modelo ${consumo.modeloCaixa}.`,
+          'error'
+        );
+        return false;
+      }
+
+      if (disponivelEmbalagens < consumo.embalagens) {
+        mostrarToast(
+          `❌ ${item.nome}: faltam embalagens.`,
+          'error'
+        );
+        return false;
+      }
+
+    } else {
+      mostrarToast(
+        `❌ Escolha retirar ou produzir para ${item.nome}.`,
+        'error'
+      );
+      return false;
+    }
+  }
+
+  // SEGUNDA ETAPA: executar as baixas.
+  for (const item of itens) {
+    const produto = state.produtos.find(p => p.id === item.produtoId);
+
+    if (item.modalidade === 'retirar') {
+      (item.retiradas || []).forEach(r => {
+        const prateleira = state.prateleiras.find(
+          p => p.id === r.prateleiraId
+        );
+
+        if (!prateleira) return;
+
+        const posicao = prateleira.produtos.find(p =>
+          p.id === item.produtoId &&
+          String(p.posicao) === String(r.posicao)
+        );
+
+        if (!posicao) return;
+
+        posicao.quantidade -= r.quantidade;
+
+        if (posicao.quantidade <= 0) {
+          prateleira.produtos = prateleira.produtos.filter(
+            p => p !== posicao
+          );
+        }
+
+        if (produto) {
+          produto.quantidade = Math.max(
+            0,
+            (produto.quantidade || 0) - r.quantidade
+          );
+        }
+      });
+
+    } else if (item.modalidade === 'produzir') {
+      const consumo = calcularConsumoProducaoPedido(
+        item.produtoId,
+        item.pacotes
+      );
+
+      if (consumo.modeloCaixa === 'B') {
+        state.insumos.caixaModeloB -= consumo.caixas;
+      } else {
+        state.insumos.caixaModeloA -= consumo.caixas;
+      }
+
+      if (consumo.usa40x50) {
+        state.insumos.embalagem40x50 -= consumo.embalagens;
+      } else {
+        state.insumos.embalagens[item.produtoId] =
+          (state.insumos.embalagens[item.produtoId] || 0) -
+          consumo.embalagens;
+      }
+
+      // Mantém a baixa dos componentes injetados vinculados ao produto.
+      if (produto) {
+        descontarInjetadosPorFamilia(produto, consumo.caixas);
+      }
+
+      registrarHistorico(
+        item.nome,
+        'Produção para Pedido',
+        item.pacotes,
+        `${consumo.caixas} caixas utilizadas; ${consumo.embalagens} embalagens utilizadas.`
+      );
+    }
+  }
+
+  // Finaliza o pedido.
+  state.pedidosSeparar = state.pedidosSeparar.filter(
+    p => p.codigo !== pedido.codigo
+  );
+
+  pedido.status = 'finalizado';
+  pedido.dataFinalizacao = new Date().toLocaleString();
+
+  state.pedidosFinalizados.push(pedido);
+
+  saveData();
+  salvarInsumos();
+
+  registrarHistorico(
+    `Pedido ${pedido.codigo}`,
+    'Pedido Separado',
+    itens.reduce((a, i) => a + i.pacotes, 0),
+    itens.map(i =>
+      `${i.nome}: ${i.pacotes} pacotes (${i.modalidade})`
+    ).join('; ')
+  );
+
+  verificarAlertasInsumos();
+  renderizarInsumos();
+
+  return true;
+}
+
+// Envia o pedido da criação para a lista de pedidos pendentes
+function finalizarPedidoSeparacao() {
+  if (!pedidoAtualEmEdicao) {
+    mostrarToast('❌ Nenhum pedido em edição!', 'error');
+    return;
+  }
+
+  if (Object.keys(pedidoAtualEmEdicao.itens).length === 0) {
+    mostrarToast('❌ Pedido vazio!', 'error');
+    return;
+  }
+
+  if (!confirm(
+    `Enviar pedido ${pedidoAtualEmEdicao.codigo} para a aba Separar?`
+  )) return;
+
+  salvarEstadoParaUndo();
+
+  pedidoAtualEmEdicao.status = 'separar';
+
+  setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
+
+  pedidoAtualEmEdicao = null;
+
+  atualizarPedidoNovo();
+  atualizarListasPedidos();
+
+  mostrarToast('✅ Pedido enviado para Separar!', 'success');
+}
+
+// Atualiza as listas de pedidos
 
 function atualizarListasPedidos() {
   const ls = document.getElementById('listaPedidosSeparar');
   const lf = document.getElementById('listaPedidosFinalizados');
+
+  function renderizarItens(pedido) {
+    const itens = Object.values(pedido.itens || {});
+
+    return itens.map(item => {
+      let detalhes = '';
+
+      if (item.modalidade === 'retirar') {
+        const retiradas = item.retiradas || [];
+
+        const locais = retiradas.map(r => {
+          const prateleira = state.prateleiras.find(
+            p => p.id === r.prateleiraId
+          );
+
+          const nomePrateleira = prateleira
+            ? prateleira.nome || prateleira.id
+            : r.prateleiraId;
+
+          return `
+            <div style="
+              padding:4px 0;
+              color:var(--text-muted);
+              font-size:13px;
+            ">
+              📍 Prateleira: <strong>${nomePrateleira}</strong>
+              | Posição: <strong>${r.posicao}</strong>
+              | Quantidade: <strong>${r.quantidade} caixas</strong>
+            </div>
+          `;
+        }).join('');
+
+        detalhes = `
+          <div style="margin-top:6px;">
+            <strong style="color:var(--info);">
+              📦 Retirada da prateleira
+            </strong>
+            ${locais}
+          </div>
+        `;
+
+      } else if (item.modalidade === 'produzir') {
+        detalhes = `
+          <div style="margin-top:6px;color:var(--success);">
+            🏭 Produziu ${item.pacotes} pacotes
+          </div>
+        `;
+
+      } else {
+        detalhes = `
+          <div style="margin-top:6px;color:var(--danger);">
+            ⚠️ Modalidade não definida
+          </div>
+        `;
+      }
+
+      const caixas = Math.ceil(
+        item.pacotes / (item.pacotesPorVolume || 50)
+      );
+
+      return `
+        <div style="
+          padding:10px;
+          margin-bottom:8px;
+          border-bottom:1px solid var(--border);
+        ">
+          <div>
+            <strong>${item.nome}</strong>
+            <br>
+            <small style="color:var(--text-muted);">
+              Código: ${item.codigoInterno || 'Sem código'}
+            </small>
+          </div>
+
+          <div style="margin-top:5px;">
+            ${item.pacotes} pacotes | ${caixas} caixas
+          </div>
+
+          ${detalhes}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // PEDIDOS PENDENTES
   if (ls) {
     ls.innerHTML = state.pedidosSeparar.map(p => {
-      const tc = Object.values(p.itens).reduce((a, i) => a + i.pacotes, 0);
-      const tv = Object.values(p.itens).reduce((a, i) => a + i.caixas, 0);
-      return `<div class="pedido-card">
-        <div class="pedido-codigo">📋 ${p.codigo}</div>
-        <div class="pedido-itens">${Object.values(p.itens).map(i => {
-        const res = state.carga.filter(c => c.id === i.produtoId && c.pedidoCodigo === p.codigo).reduce((a, c) => a + c.quantidade, 0);
-        const falta = Math.max(0, i.pacotes - res);
-        return `${i.nome}: ${i.pacotes} cx (Reserv: ${res}, Produzir: ${falta})`;
-      }).join('; ') || 'Nenhum item'}</div>
-        <div class="pedido-total-caixas">📦 ${tv} vol(s) | ${tc} caixas</div>
-        <div class="pedido-acoes">
-          <button class="btn btn-sm btn-info" onclick="editarPedido('${p.codigo}')">✏️ Editar</button>
-          <button class="btn btn-sm btn-success" onclick="finalizarPedidoDaLista('${p.codigo}')">✅ Separar</button>
-          <button class="btn btn-sm btn-danger" onclick="excluirPedido('${p.codigo}', 'separar')">🗑️ Excluir</button>
-        </div></div>`;
+      const itens = Object.values(p.itens || {});
+
+      const totalPacotes = itens.reduce(
+        (a, i) => a + i.pacotes, 0
+      );
+
+      const totalCaixas = itens.reduce(
+        (a, i) => a + Math.ceil(
+          i.pacotes / (i.pacotesPorVolume || 50)
+        ), 0
+      );
+
+      return `
+        <div class="pedido-card">
+          <div class="pedido-codigo">
+            📋 Pedido: ${p.codigo}
+          </div>
+
+          <div class="pedido-itens" style="margin-top:10px;">
+            ${renderizarItens(p) || 'Nenhum item'}
+          </div>
+
+          <div class="pedido-total-caixas">
+            📦 ${totalCaixas} caixas | ${totalPacotes} pacotes
+          </div>
+
+          <div class="pedido-acoes">
+            <button
+              class="btn btn-sm btn-info"
+              onclick="editarPedido('${p.codigo}')"
+            >
+              ✏️ Editar
+            </button>
+
+            <button
+              class="btn btn-sm btn-success"
+              onclick="finalizarPedidoDaLista('${p.codigo}')"
+            >
+              ✅ Separar
+            </button>
+
+            <button
+              class="btn btn-sm btn-danger"
+              onclick="excluirPedido('${p.codigo}', 'separar')"
+            >
+              🗑️ Excluir
+            </button>
+          </div>
+        </div>
+      `;
     }).join('') || '<p style="color:var(--text-muted);">Nenhum pedido pendente.</p>';
   }
+
+  // PEDIDOS FINALIZADOS
   if (lf) {
     lf.innerHTML = state.pedidosFinalizados.map(p => {
-      const tc = Object.values(p.itens).reduce((a, i) => a + i.pacotes, 0);
-      const tv = Object.values(p.itens).reduce((a, i) => a + i.caixas, 0);
-      return `<div class="pedido-card">
-        <div class="pedido-codigo">✅ ${p.codigo}</div>
-        <div class="pedido-itens">${Object.values(p.itens).map(i => `${i.nome}: ${i.pacotes} cx`).join('; ') || 'Nenhum item'}</div>
-        <div class="pedido-total-caixas">📦 ${tv} vol(s) | ${tc} caixas</div>
-        <div style="font-size:12px;color:var(--text-muted);">Finalizado: ${p.dataFinalizacao}</div>
-        <div class="pedido-acoes">
-          <button class="btn btn-sm btn-danger" onclick="excluirPedido('${p.codigo}', 'finalizado')">🗑️ Excluir</button>
-        </div></div>`;
+      const itens = Object.values(p.itens || {});
+
+      const totalPacotes = itens.reduce(
+        (a, i) => a + i.pacotes, 0
+      );
+
+      const totalCaixas = itens.reduce(
+        (a, i) => a + Math.ceil(
+          i.pacotes / (i.pacotesPorVolume || 50)
+        ), 0
+      );
+
+      return `
+        <div class="pedido-card">
+          <div class="pedido-codigo">
+            ✅ Pedido: ${p.codigo}
+          </div>
+
+          <div class="pedido-itens" style="margin-top:10px;">
+            ${renderizarItens(p) || 'Nenhum item'}
+          </div>
+
+          <div class="pedido-total-caixas">
+            📦 ${totalCaixas} caixas | ${totalPacotes} pacotes
+          </div>
+
+          <div style="font-size:12px;color:var(--text-muted);">
+            Finalizado: ${p.dataFinalizacao || '-'}
+          </div>
+
+          <div class="pedido-acoes">
+            <button
+              class="btn btn-sm btn-danger"
+              onclick="excluirPedido('${p.codigo}', 'finalizado')"
+            >
+              🗑️ Excluir
+            </button>
+          </div>
+        </div>
+      `;
     }).join('') || '<p style="color:var(--text-muted);">Nenhum pedido finalizado.</p>';
   }
 }
 
+
+// Abre pedido para edição
 function editarPedido(codigo) {
-  const p = state.pedidosSeparar.find(x => x.codigo === codigo);
-  if (!p) { mostrarToast('❌ Pedido não encontrado!', 'error'); return; }
-  pedidoAtualEmEdicao = p;
+  const pedido = state.pedidosSeparar.find(p => p.codigo === codigo);
+
+  if (!pedido) {
+    mostrarToast('❌ Pedido não encontrado!', 'error');
+    return;
+  }
+
+  pedidoAtualEmEdicao = pedido;
+
   switchTab('pedidos');
   mostrarSubAba('pedidonovo');
+
   atualizarPedidoNovo();
 }
 
+// Executa a baixa ao clicar em Separar na lista
 function finalizarPedidoDaLista(codigo) {
-  const p = state.pedidosSeparar.find(x => x.codigo === codigo);
-  if (!p) return;
-  if (!confirm(`Finalizar pedido ${codigo}?`)) return;
+  const pedido = state.pedidosSeparar.find(p => p.codigo === codigo);
+
+  if (!pedido) return;
+
+  if (!confirm(
+    `Separar pedido ${codigo}?\n\nAs quantidades selecionadas serão baixadas do estoque.`
+  )) return;
+
   salvarEstadoParaUndo();
-  _finalizarPedido(p);
+
+  const sucesso = _finalizarPedido(pedido);
+
+  if (!sucesso) return;
+
   atualizarListasPedidos();
   carregarPrateleiras();
-  carregarCarga();
   atualizarDashboard();
-  mostrarToast('✅ Separado!', 'success');
+
+  mostrarToast('✅ Pedido separado com sucesso!', 'success');
 }
 
+// Exclui pedido sem alterar a Carga
 function excluirPedido(codigo, tipo) {
   if (!confirm(`Excluir pedido ${codigo}?`)) return;
+
   salvarEstadoParaUndo();
+
   if (tipo === 'separar') {
-    state.carga = state.carga.filter(c => c.pedidoCodigo !== codigo);
-    setData(STORAGE_KEYS.carga, state.carga);
-    state.pedidosSeparar = state.pedidosSeparar.filter(x => x.codigo !== codigo);
+    state.pedidosSeparar = state.pedidosSeparar.filter(
+      p => p.codigo !== codigo
+    );
+
+    if (pedidoAtualEmEdicao?.codigo === codigo) {
+      pedidoAtualEmEdicao = null;
+      atualizarPedidoNovo();
+    }
+
   } else {
-    state.pedidosFinalizados = state.pedidosFinalizados.filter(x => x.codigo !== codigo);
+    state.pedidosFinalizados = state.pedidosFinalizados.filter(
+      p => p.codigo !== codigo
+    );
   }
+
   setData(STORAGE_KEYS.pedidosSeparar, state.pedidosSeparar);
   setData(STORAGE_KEYS.pedidosFinalizados, state.pedidosFinalizados);
+
   atualizarListasPedidos();
-  carregarPrateleiras();
-  carregarCarga();
-  mostrarToast('🗑️ Excluído!', 'warning');
+
+  mostrarToast('🗑️ Pedido excluído!', 'warning');
 }
+
 
 // ============================================================
 // PEDIDO DE CARGA PERSISTENTE
 // ============================================================
 function montarPedidoCarga() {
-  carregarPedidoCarga();
   const c = document.getElementById('pedidoCargaContainer');
   if (!c) return;
+
+  // Garante que exista uma estrutura válida para o pedido.
+  if (
+    !state.pedidoCargaAtual ||
+    typeof state.pedidoCargaAtual !== 'object'
+  ) {
+    state.pedidoCargaAtual = {
+      ativo: false,
+      codigo: '',
+      itens: {}
+    };
+  }
+
+  if (!state.pedidoCargaAtual.itens) {
+    state.pedidoCargaAtual.itens = {};
+  }
+
   if (!state.pedidoCargaAtual.ativo) {
     c.innerHTML = `
       <div class="pedido-carga-wrap" style="text-align:center;">
         <h3 style="color:var(--text);">🚛 Montar Pedido de Carga</h3>
-        <p style="color:var(--text-muted);margin:15px 0;">Nenhum pedido de carga ativo.</p>
+        <p style="color:var(--text-muted);margin:15px 0;">
+          Nenhum pedido de carga ativo.
+        </p>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:15px;">
-          <input type="text" id="codigoCargaInput" placeholder="Código do Pedido (ex: CARGA-001)" style="min-width:250px;padding:12px 15px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);">
-          <button class="btn btn-lg btn-success" onclick="criarPedidoCarga()">➕ Criar Pedido de Carga</button>
+          <input
+            type="text"
+            id="codigoCargaInput"
+            placeholder="Código do Pedido (ex: CARGA-001)"
+            style="min-width:250px;padding:12px 15px;border:2px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);"
+          >
+          <button
+            class="btn btn-lg btn-success"
+            onclick="criarPedidoCarga()"
+          >
+            ➕ Criar Pedido de Carga
+          </button>
         </div>
       </div>`;
   } else {
@@ -3916,9 +5026,26 @@ function renderizarTotaisCarga(itens) {
 }
 
 function atualizarPedidoCarga() {
-  carregarPedidoCarga();
-  if (state.pedidoCargaAtual.ativo) renderizarCargaAtiva();
-  else montarPedidoCarga();
+  if (
+    !state.pedidoCargaAtual ||
+    typeof state.pedidoCargaAtual !== 'object'
+  ) {
+    state.pedidoCargaAtual = {
+      ativo: false,
+      codigo: '',
+      itens: {}
+    };
+  }
+
+  if (!state.pedidoCargaAtual.itens) {
+    state.pedidoCargaAtual.itens = {};
+  }
+
+  if (state.pedidoCargaAtual.ativo) {
+    renderizarCargaAtiva();
+  } else {
+    montarPedidoCarga();
+  }
 }
 
 function adicionarProdutoPedidoCarga() {
@@ -4115,7 +5242,7 @@ function buscarDisponibilidadeProduto(produtoId) {
     pr.produtos.forEach(pos => {
       if (pos.id === produtoId && pos.quantidade > 0) {
         const res = state.carga
-          .filter(c => c.id === produtoId && c.prateleira === pr.id && c.posicao === pos.posicao && !c.pedidoCodigo)
+          .filter(c => c.id === produtoId && c.prateleira === pr.id && c.posicao === pos.posicao)
           .reduce((a, c) => a + c.quantidade, 0);
         const disp = pos.quantidade - res;
         if (disp > 0) {
@@ -4161,6 +5288,7 @@ function atualizarTudo() {
   carregarCarga();
   carregarHistorico();
   atualizarDashboard();
+  verificarEstoque();
   atualizarSelects();
   atualizarGrafico();
   renderizarInsumos();
@@ -4806,44 +5934,24 @@ function abrirScannerParaCampo(campoId) {
 // EVENTOS GLOBAIS E HOOKS
 // ============================================================
 document.addEventListener('DOMContentLoaded', function () {
-  setTimeout(() => {
-    if (typeof injetarBotoesPDF === 'function') {
-      injetarBotoesPDF();
-    }
-  }, 500);
-
-  const inputLeitor = document.getElementById('codigoLido');
-  if (inputLeitor) {
-    inputLeitor.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); adicionarCodigoLido(); }
-    });
-  }
-
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
-        const registrations =
-          await navigator.serviceWorker.getRegistrations();
-
-        for (const registration of registrations) {
-          if (registration.scope.includes('/dsync1/')) {
-            await registration.unregister();
-          }
-        }
-
         const registration =
-          await navigator.serviceWorker.register(
-            './sw.js',
-            { scope: './' }
-          );
+          await navigator.serviceWorker.register('./sw.js', {
+            scope: './'
+          });
 
-        console.log('Service Worker registrado:', registration.scope);
+        console.log(
+          'Service Worker registrado:',
+          registration.scope
+        );
+
       } catch (error) {
         console.error('Erro no Service Worker:', error);
       }
     });
   }
-
 
   const inputManualPrat = document.getElementById('scannerPrateleiraInput');
   if (inputManualPrat) {
