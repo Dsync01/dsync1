@@ -23,7 +23,7 @@
     --bg-card: #ffffff;
     --bg-elevated: #ffffff;
     --bg-subtle: #f8fafc;
-    --bg-image: url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBLvs-VutdttJuPpYZWUK93UgGgGh68HgsdTt91gjqDg&s=10");
+    --bg-image: url("/dsync1/logoDS.png");
     --text: #0f172a;
     --text-secondary: #475569;
     --text-muted: #94a3b8;
@@ -130,7 +130,7 @@ body.tab-usuarios {
 
 body {
     background: var(--bg);
-    background-image: url('/DSYNC/logoDS.png') !important;
+    background-image: var(--bg-image) !important;
     background-size: 200px 200px;
     color: var(--text);
     padding: 16px;
