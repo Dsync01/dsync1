@@ -14,11 +14,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
-    <script src="/dsync1/supabase.js"></script>
+    <script src="/DSYNC/supabase.js"></script>
 
-    <link rel="stylesheet" href="/dsync1/style.css" />
-    <link rel="manifest" href="/dsync1/manifest.json" />
-    <link rel="apple-touch-icon" href="/dsync1/logoDS.png" />
+    <link rel="stylesheet" href="/DSYNC/style.css" />
+    <link rel="manifest" href="/DSYNC/manifest.json" />
+    <link rel="apple-touch-icon" href="/DSYNC/logoDS.png" />
 </head>
 
 <body>
@@ -187,7 +187,7 @@
     </div>
 
     <!-- ===== APP ===== -->
-    <div id="appContent" style="display: none">
+    <div id="appContent" style="display: none" >
         <div class="container">
             <!-- HEADER -->
             <div class="header">
@@ -322,7 +322,7 @@
                         <div class="dash-card" onclick="switchTab('estoque'); mostrarSubAba('insumos');">
                             <div class="dash-icon">📦</div>
                             <div class="dash-number" id="dashCaixasPapelao">0</div>
-                            <div class="dash-label">Caixas de Papelão</div>
+                            <div class="dash-label">Insumos</div>
                         </div>
                         <div class="dash-card" onclick="switchTab('injecao'); mostrarSubAba('injecao');">
                             <div class="dash-icon">💉</div>
@@ -627,9 +627,11 @@
                         <button class="sub-tab" data-subaba="finalizado" onclick="mostrarSubAba('finalizado')">
                             ✅ Finalizado
                         </button>
-
                         <button class="sub-tab" data-subaba="carga" onclick="mostrarSubAba('carga')">
                             🚛 Carga
+                        </button>
+                        <button class="sub-tab" data-subaba="conferencia" onclick="mostrarSubAba('conferencia')">
+                            📦 Conferência
                         </button>
                     </div>
 
@@ -936,18 +938,21 @@
                             </button>
                         </div>
 
-                        <div class="stats">
-                            <div class="stat-card">
-                                <div class="stat-number" id="totalCargaProdutos">0</div>
-                                <div class="stat-label">Produtos na Carga</div>
-                            </div>
-                            <div class="stat-card reserva">
-                                <div class="stat-number" id="totalCargaItens">0</div>
-                                <div class="stat-label">Itens Reservados</div>
-                            </div>
-                        </div>
+                        <!-- RESUMO ÚNICO DA CARGA -->
+<div id="pedidoCargaTotais"></div>
                         <div id="pedidoCargaContainer"></div>
                         <div id="cargaContainer" style="display:none !important;"></div>
+
+                    </div>
+                    <!-- ===== CONFERÊNCIA DE CARGA ===== -->
+                    <div id="sub-tab-conferencia" class="sub-tab-content">
+                        <div class="controls">
+                            <button class="info" onclick="renderizarConferencia()">
+                                🔄 Atualizar
+                            </button>
+                        </div>
+
+                        <div id="conferenciaContainer"></div>
                     </div>
                 </div>
             </div>
@@ -1598,9 +1603,8 @@
 
         <div class="toast" id="toast"></div>
     </div>
-    <script src="/dsync1/exportacao.js"></script>
-    <script src="/dsync1/script.js"></script>
+    <script src="/DSYNC/exportacao.js"></script>
+    <script src="/DSYNC/script.js"></script>
 </body>
-
 
 </html>

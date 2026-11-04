@@ -19,10 +19,11 @@
     --purple: #8b5cf6;
     --purple-hover: #7c3aed;
     --yellow: #ffd93d;
-    --bg: #f4f6fb;
+    --bg: #fafbf4;
     --bg-card: #ffffff;
     --bg-elevated: #ffffff;
     --bg-subtle: #f8fafc;
+    --bg-image: url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBLvs-VutdttJuPpYZWUK93UgGgGh68HgsdTt91gjqDg&s=10");
     --text: #0f172a;
     --text-secondary: #475569;
     --text-muted: #94a3b8;
@@ -39,6 +40,7 @@
     --radius-xl: 20px;
     --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 
 body.dark-mode {
     --bg: #0a0e1a;
@@ -122,10 +124,14 @@ body.tab-usuarios {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    
+    
 }
 
 body {
     background: var(--bg);
+    background-image: url('/DSYNC/logoDS.png') !important;
+    background-size: 200px 200px;
     color: var(--text);
     padding: 16px;
     min-height: 100vh;
@@ -2267,7 +2273,7 @@ body.dark-mode .insumos-tabela tr.baixo {
 }
 
 .tabela-carga {
-    width: 100%;
+    width: 80%;
     border-collapse: collapse;
 }
 
