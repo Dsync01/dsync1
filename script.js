@@ -5055,11 +5055,6 @@ function renderizarTotaisCarga(itens) {
         <div class="total-label">Prateleiras selecionadas</div>
       </div>
 
-      <div class="total-box">
-        <div class="total-numero">${tp}</div>
-        <div class="total-label">Produtos</div>
-      </div>
-
       <div class="total-box reservado">
         <div class="total-numero">${tReservado}</div>
         <div class="total-label">Reservado</div>
@@ -5077,6 +5072,10 @@ function renderizarTotaisCarga(itens) {
         <div class="total-label">Falta</div>
       </div>
 
+      <div class="total-box">
+        <div class="total-numero">${tp}</div>
+        <div class="total-label">Produtos na carga</div>
+      </div>
     </div>
 
     ${completo
