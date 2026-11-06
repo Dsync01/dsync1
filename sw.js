@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dsync-v6';
+const CACHE_NAME = 'dsync-v8';
 
 // Caminho base da sua aplicação no GitHub Pages
 const BASE_PATH = '/dsync1/';
@@ -6,10 +6,19 @@ const BASE_PATH = '/dsync1/';
 const ASSETS = [
   BASE_PATH,
   BASE_PATH + 'index.html',
-  BASE_PATH + 'style.css',
-  BASE_PATH + 'script.js',
-  BASE_PATH + 'supabase.js',
-  BASE_PATH + 'logoDS.png',
+  BASE_PATH + 'etiquetas.html',
+  BASE_PATH + 'css/style.css',
+  BASE_PATH + 'js/script.js',
+  BASE_PATH + 'js/supabase.js',
+  BASE_PATH + 'js/exportacao.js',
+  BASE_PATH + 'js/auth.js',
+  BASE_PATH + 'js/carga.js',
+  BASE_PATH + 'js/core.js',
+  BASE_PATH + 'js/injecao.js',
+  BASE_PATH + 'js/insumos.js',
+  BASE_PATH + 'js/sincronizacao.js',
+  BASE_PATH + 'assets/images/logoDS.png',
+  BASE_PATH + 'assets/images/logoDS.gif',
   BASE_PATH + 'manifest.json'
 ];
 

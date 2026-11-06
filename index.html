@@ -14,11 +14,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
-    <script src="/dsync1/supabase.js"></script>
+    <script src="/dsync1/js/supabase.js"></script>
 
-    <link rel="stylesheet" href="/dsync1/style.css" />
+    <link rel="stylesheet" href="/dsync1/css/style.css" />
     <link rel="manifest" href="/dsync1/manifest.json" />
-    <link rel="apple-touch-icon" href="/dsync1/logoDS.png" />
+    <link rel="apple-touch-icon" href="/dsync1/assets/images/logoDS.png" />
 </head>
 
 <body>
@@ -187,12 +187,12 @@
     </div>
 
     <!-- ===== APP ===== -->
-    <div id="appContent" style="display: none" >
+    <div id="appContent" style="display: none">
         <div class="container">
             <!-- HEADER -->
             <div class="header">
                 <div class="header-left" onclick="irParaInicio()" style="cursor: pointer" title="Voltar ao início">
-                    <img class="header-logo" src="logoDS.png" alt="D.Sync Logo" />
+                    <img class="header-logo" src="/dsync1/assets/images/logoDS.png" alt="D.Sync Logo" />
                     <div>
                         <div class="header-title">
                             <span class="dc">D.</span>
@@ -939,7 +939,7 @@
                         </div>
 
                         <!-- RESUMO ÚNICO DA CARGA -->
-<div id="pedidoCargaTotais"></div>
+                        <div id="pedidoCargaTotais"></div>
                         <div id="pedidoCargaContainer"></div>
                         <div id="cargaContainer" style="display:none !important;"></div>
 
@@ -1584,27 +1584,36 @@
         </div>
         <div id="modalMenuDados" class="modal" style="display:none;">
             <div class="modal-content" style="max-width:350px; text-align:center;">
-                <h3>📁 Gerenciar Dados</h3>
+                <div class="controls">
+                    <h3>📁 Gerenciar Dados</h3>
 
-                <button class="info" onclick="fecharMenuDados(); abrirExportar();" style="width:100%; margin:10px 0;">
-                    📥 Exportar Dados
-                </button>
+                    <button class="info" onclick="fecharMenuDados(); abrirExportar();"
+                        style="width:100%; margin:10px 0;">
+                        📥 Exportar Dados
+                    </button>
 
-                <button class="warning" onclick="fecharMenuDados(); abrirImportar();"
-                    style="width:100%; margin:10px 0;">
-                    📤 Importar Dados
-                </button>
+                    <button class="warning" onclick="fecharMenuDados(); abrirImportar();"
+                        style="width:100%; margin:10px 0;">
+                        📤 Importar Dados
+                    </button>
 
-                <button class="secondary" onclick="fecharMenuDados()" style="width:100%; margin-top:10px;">
-                    Fechar
-                </button>
+                    <button class="secondary" onclick="fecharMenuDados()" style="width:100%; margin-top:10px;">
+                        Fechar
+                    </button>
+                </div>
             </div>
         </div>
 
         <div class="toast" id="toast"></div>
     </div>
-    <script src="/dsync1/exportacao.js"></script>
-    <script src="/dsync1/script.js"></script>
+    <script src="/dsync1/js/auth.js"></script>
+    <script src="/dsync1/js/carga.js"></script>
+    <script src="/dsync1/js/core.js"></script>
+    <script src="/dsync1/js/injecao.js"></script>
+    <script src="/dsync1/js/insumos.js"></script>
+    <script src="/dsync1/js/sincronizacao.js"></script>
+    <script src="/dsync1/js/exportacao.js"></script>
+    <script src="/dsync1/js/script.js"></script>
 </body>
 
 </html>

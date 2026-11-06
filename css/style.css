@@ -23,8 +23,8 @@
     --bg-card: #ffffff;
     --bg-elevated: #ffffff;
     --bg-subtle: #f8fafc;
-    --bg-image: url("/dsync1/logoDS.png");
-    --bg-image-gif: url("/dsync1/logoDS.gif");
+    --bg-image: url("/dsync1/assets/images/logoDS.png");
+    --bg-image-gif: url("/dsync1/assets/images/logoDS.gif");
     --text: #0f172a;
     --text-secondary: #475569;
     --text-muted: #94a3b8;
