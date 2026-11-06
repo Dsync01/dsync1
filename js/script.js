@@ -5031,7 +5031,7 @@ function imprimirEtiquetas() {
     );
 
     // Abre a página permanente de etiquetas
-    const win = window.open('/DSYNC/etiquetas.html', '_blank');
+    const win = window.open('/dsync1/etiquetas.html', '_blank');
 
     if (!win) {
       mostrarToast('Permita pop-ups para abrir as etiquetas!', 'warning');
